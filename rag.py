@@ -8,6 +8,7 @@ from typing import Dict, List, Tuple
 import numpy as np
 import torch
 from transformers import AutoTokenizer, AutoModel
+from rank_bm25 import BM25Okapi
 
 try:
     # Optional dependency for LLM step
@@ -98,6 +99,28 @@ def map_document_embeddings(documents, tokenizer, model):
     return mapped_document_db
 
 
+def build_bm25_index(documents):
+    """
+    Build a BM25 index over all chunks for hybrid search.
+    Returns the BM25Okapi instance and an index-to-(doc_id, chunk_id) mapping.
+    """
+    corpus_tokens: List[List[str]] = []
+    index_mapping: List[Tuple[str, str]] = []
+
+    for doc_id, chunk_map in documents.items():
+        for chunk_id, data in chunk_map.items():
+            text = data.get("text", "")
+            tokens = text.lower().split()
+            corpus_tokens.append(tokens)
+            index_mapping.append((doc_id, chunk_id))
+
+    if not corpus_tokens:
+        return None, []
+
+    bm25 = BM25Okapi(corpus_tokens)
+    return bm25, index_mapping
+
+
 def retrieve_information(query, tokenizer, model, mapped_document_db, documents, top_k):
     query_inputs = tokenizer(query, return_tensors="pt", padding=True, truncation=True)
     query_embeddings = model(**query_inputs).last_hidden_state.mean(dim=1).squeeze()
@@ -132,6 +155,83 @@ def retrieve_information(query, tokenizer, model, mapped_document_db, documents,
         if len(deduped) >= top_k:
             break
   
+    return deduped
+
+
+def retrieve_hybrid_information(
+    query,
+    tokenizer,
+    model,
+    mapped_document_db,
+    documents,
+    bm25_index,
+    bm25_mapping,
+    top_k,
+    alpha: float = 0.7,
+):
+    """
+    Hybrid retrieval that combines semantic similarity (vectors) with BM25 keyword scores.
+    alpha controls the weight of semantic vs keyword (alpha*vector + (1-alpha)*bm25).
+    """
+    # Fallback to pure vector search if BM25 is not available
+    if bm25_index is None or not bm25_mapping:
+        return retrieve_information(query, tokenizer, model, mapped_document_db, documents, top_k)
+
+    # Vector scores (semantic)
+    query_inputs = tokenizer(query, return_tensors="pt", padding=True, truncation=True)
+    query_embeddings = model(**query_inputs).last_hidden_state.mean(dim=1).squeeze()
+    query_embeddings = np.array(query_embeddings.tolist())
+
+    vec_scores = {}
+    for doc_id, chunk_dict in mapped_document_db.items():
+        for chunk_id, chunk_embeddings in chunk_dict.items():
+            chunk_vec = np.array(chunk_embeddings)
+            norm_q = np.linalg.norm(query_embeddings)
+            norm_c = np.linalg.norm(chunk_vec)
+            if norm_q == 0 or norm_c == 0:
+                score = 0.0
+            else:
+                score = float(np.dot(chunk_vec, query_embeddings) / (norm_q * norm_c))
+            vec_scores[(doc_id, chunk_id)] = score
+
+    max_vec = max(vec_scores.values()) if vec_scores else 1.0
+
+    # BM25 scores (keyword)
+    query_tokens = query.lower().split()
+    bm25_raw_scores = bm25_index.get_scores(query_tokens)
+    max_bm25 = max(bm25_raw_scores) if len(bm25_raw_scores) > 0 else 1.0
+
+    bm25_scores = {}
+    for idx, raw_score in enumerate(bm25_raw_scores):
+        doc_id, chunk_id = bm25_mapping[idx]
+        bm25_scores[(doc_id, chunk_id)] = float(raw_score)
+
+    # Combine scores
+    combined_scores = {}
+    keys = set(vec_scores.keys()) | set(bm25_scores.keys())
+    for key in keys:
+        vec = vec_scores.get(key, 0.0)
+        bm = bm25_scores.get(key, 0.0)
+        vec_norm = vec / max_vec if max_vec > 0 else 0.0
+        bm_norm = bm / max_bm25 if max_bm25 > 0 else 0.0
+        combined = alpha * vec_norm + (1.0 - alpha) * bm_norm
+        combined_scores[key] = combined
+
+    sorted_scores = sorted(combined_scores.items(), key=lambda item: item[1], reverse=True)
+
+    # Deduplicate by exact text content while preserving order
+    seen_texts = set()
+    deduped: List[Tuple[str, str, float]] = []
+    for (doc_id, chunk_id), score in sorted_scores:
+        text = documents[doc_id][chunk_id]["text"]
+        key = text.strip()
+        if key in seen_texts:
+            continue
+        seen_texts.add(key)
+        deduped.append((doc_id, chunk_id, score))
+        if len(deduped) >= top_k:
+            break
+
     return deduped
 
 

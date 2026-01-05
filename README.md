@@ -1,8 +1,8 @@
-# 🔎 Advanced RAG System
+# Advanced RAG System
 
 A sophisticated Retrieval Augmented Generation (RAG) system built from scratch with enhanced features including multi-chunk context, source citations, file upload, and a modern Streamlit UI.
 
-## ✨ Features
+## Features
 
 ### Core RAG Capabilities
 - **Semantic Search**: Uses BGE embedding models for high-quality semantic similarity
@@ -12,7 +12,7 @@ A sophisticated Retrieval Augmented Generation (RAG) system built from scratch w
 - **Metadata Tracking**: Tracks file names, chunk positions, and similarity scores
 
 ### UI/UX Enhancements
-- **Modern Interface**: Clean, tabbed interface with emojis and better layout
+- **Modern Interface**: Clean, tabbed interface with better layout
 - **File Upload**: Drag & drop text files directly in the browser
 - **Query History**: Save and replay previous searches
 - **Real-time Search**: Instant search with loading indicators
@@ -24,7 +24,7 @@ A sophisticated Retrieval Augmented Generation (RAG) system built from scratch w
 - **OpenAI Integration**: Multiple model support (GPT-4o, GPT-4o-mini, GPT-3.5-turbo)
 - **Error Handling**: Graceful error handling with helpful messages
 
-## 🚀 Quick Start
+## Quick Start
 
 ### 1. Installation
 
@@ -50,10 +50,6 @@ export OPENAI_API_KEY=your_api_key_here
 ### 3. Run the Application
 
 ```bash
-# Run the enhanced version
-streamlit run app_enhanced.py
-
-# Or run the basic version
 streamlit run app.py
 ```
 
@@ -65,24 +61,22 @@ streamlit run app.py
 4. **View Results**: See ranked results with source citations
 5. **AI Response**: Get AI-generated answers using multiple chunks as context
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 RAG/
-├── app.py                 # Basic Streamlit app
-├── app_enhanced.py        # Enhanced UI with advanced features
-├── rag.py                 # Core RAG functions
-├── requirements.txt        # Python dependencies
-├── README.md             # This file
-├── .gitignore            # Git ignore rules
-├── sample_texts/         # Sample documents
-│   ├── text1.txt
-│   ├── text2.txt
-│   └── text3.txt
-└── uploaded_files/       # User uploaded files (created at runtime)
+├── app.py           # Streamlit app (advanced UI with RAG)
+├── rag.py           # Core RAG functions
+├── requirements.txt # Python dependencies
+├── README.md        # This file
+├── .gitignore       # Git ignore rules
+└── sample_texts/    # Sample documents
+    ├── text1.txt
+    ├── text2.txt
+    └── text3.txt
 ```
 
-## 🔧 Configuration
+## Configuration
 
 ### Embedding Models
 - `BAAI/bge-small-en-v1.5` (default) - High quality, fast
@@ -93,11 +87,11 @@ RAG/
 - **Top K**: 1-10 results (default: 3)
 - **Max Context Chunks**: 1-5 chunks for LLM (default: 3)
 
-## 🛠️ Development
+## Development
 
 ### Adding New Features
 
-1. **New Embedding Models**: Add to the model selection in `app_enhanced.py`
+1. **New Embedding Models**: Add to the model selection in `app.py`
 2. **Custom Chunking**: Modify the `chunking()` function in `rag.py`
 3. **UI Components**: Add new tabs or sections in the Streamlit app
 4. **LLM Providers**: Extend `generate_llm_response()` for other providers
@@ -110,14 +104,14 @@ RAG/
 - `combine_chunks_for_context()`: Combines multiple chunks
 - `generate_llm_response()`: Generates AI responses
 
-## 📊 Performance Tips
+## Performance Tips
 
 1. **Chunk Size**: Larger chunks (300-500 tokens) for better context
 2. **Model Choice**: BGE models for quality, MiniLM for speed
 3. **Top K**: 3-5 results usually optimal for most queries
 4. **Context Chunks**: 2-3 chunks provide good balance of context vs. noise
 
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch
@@ -125,12 +119,13 @@ RAG/
 4. Add tests if applicable
 5. Submit a pull request
 
-## 📄 License
+## License
 
 This project is open source and available under the MIT License.
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - Based on the article: [Building Retrieval Augmented Generation (RAG) From Scratch](https://medium.com/red-buffer/building-retrieval-augmented-generation-rag-from-scratch-74c1cd7ae2c0)
 - Uses BGE embedding models from BAAI
 - Built with Streamlit, Transformers, and OpenAI
+
