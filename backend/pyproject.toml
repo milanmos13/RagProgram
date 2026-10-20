@@ -1,0 +1,44 @@
+[project]
+name = "nba-rag"
+version = "0.1.0"
+description = "Eval-driven retrieval over pinned NBA-history Wikipedia Articles"
+requires-python = ">=3.12"
+dependencies = [
+    "beautifulsoup4>=4.12",
+    "fastapi>=0.115",
+    "httpx>=0.27",
+    "numpy>=1.26",
+    "uvicorn[standard]>=0.30",
+]
+
+[project.optional-dependencies]
+ml = [
+    "torch>=2.2",
+    "transformers>=4.40",
+]
+dev = [
+    "pytest>=8",
+    "ruff>=0.6",
+]
+
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["slow: uses the real embedding model"]
+addopts = "-m 'not slow'"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["nba_rag", "nba_rag_api", "fakes"]

@@ -10,8 +10,8 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+/lib/
+/lib64/
 parts/
 sdist/
 var/
@@ -45,19 +45,14 @@ ehthumbs.db
 Thumbs.db
 
 # Project specific
-doc_store.json
-vector_store.json
-uploaded_files/
 *.log
-
-# Streamlit
-.streamlit/
 
 # Jupyter
 .ipynb_checkpoints/
 
-# pytest
+# pytest / ruff
 .pytest_cache/
+.ruff_cache/
 
 # mypy
 .mypy_cache/

@@ -1,0 +1,36 @@
+# Development stack.
+#   docker compose up                                   # backend :8000, frontend :3000
+#   docker compose run --rm backend python -m nba_rag.build   # one-off: build Corpus + index
+services:
+  backend:
+    build:
+      context: ./backend
+      target: dev
+    ports:
+      - "8000:8000"
+    environment:
+      NBA_RAG_ALLOWED_ORIGINS: http://localhost:3000
+      NBA_RAG_CONTACT: ${NBA_RAG_CONTACT:-}
+    volumes:
+      - ./backend:/app
+      - data:/data
+      - models:/models
+
+  frontend:
+    build:
+      context: ./frontend
+      target: dev
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - backend
+
+volumes:
+  data:
+  models:
