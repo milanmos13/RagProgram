@@ -2,7 +2,7 @@
 # Smoke-test the production backend image.
 #
 # The image must answer a search with no network access (Corpus, index and model are
-# baked in at build time) while running as UID 1000, as Hugging Face Spaces runs it.
+# baked in at build time) while running as the unprivileged UID 1000.
 #
 #   scripts/smoke-test-image.sh nba-rag-backend:prod
 set -euo pipefail

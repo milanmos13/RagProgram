@@ -108,11 +108,11 @@ describe("Search", () => {
     });
 
     it("comes from NEXT_PUBLIC_API_URL, even when set with a trailing slash", async () => {
-      vi.stubEnv("NEXT_PUBLIC_API_URL", "https://someone-nba-rag.hf.space/");
+      vi.stubEnv("NEXT_PUBLIC_API_URL", "https://nba-rag-abc123-uc.a.run.app/");
       vi.resetModules();
       const { Search: DeployedSearch } = await import("./search");
       server.use(
-        http.post("https://someone-nba-rag.hf.space/search", () =>
+        http.post("https://nba-rag-abc123-uc.a.run.app/search", () =>
           HttpResponse.json({ configuration: "baseline", results: [CURRY_LEAD] }),
         ),
       );

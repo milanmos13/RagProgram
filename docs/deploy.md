@@ -1,56 +1,97 @@
 # Deploying
 
-The backend runs in a Hugging Face Docker Space and the frontend on Vercel. The Space
-builds the last stage of `backend/Dockerfile` (`prod`). That stage fetches the
-manifest's pinned Articles, then chunks and embeds them, and bakes the result and the
-model into the image. Nothing built lives in git.
+The backend runs on Google Cloud Run and the frontend on Vercel.
 
-## 1. Backend: Hugging Face Space
+`gcloud run deploy --source backend` uploads `backend/` to Cloud Build. Cloud Build
+builds the last stage of `backend/Dockerfile` (`prod`), which fetches the manifest's
+pinned Articles, chunks and embeds them, and bakes the result and the model into the
+image. Nothing built lives in git. The service scales to zero when idle, so the first
+request after a quiet spell waits 10–20 seconds for the container to start.
 
-1. Create a Space at https://huggingface.co/new-space. Choose the **Docker** SDK with a
-   blank template and CPU basic hardware, e.g. `<hf-user>/nba-rag`.
-2. In the Space's **Settings → Variables and secrets**, add these variables:
-   - `NBA_RAG_CONTACT` (recommended): your email or URL for the Wikimedia user agent.
-     The Space passes it to the build as a build arg. If unset, the build uses the
-     project's GitHub issues URL.
-   - `NBA_RAG_ALLOWED_ORIGINS`: the Vercel production URL, e.g.
-     `https://nba-rag.vercel.app`. Separate several origins with commas. Until you
-     know the URL, use `http://localhost:3000`.
-3. Upload the backend directory. The Space repo root is `backend/`, and its
-   `README.md` holds the Space config (`sdk: docker`, `app_port: 7860`):
+## 1. One-time Google Cloud setup
+
+1. Create a project at https://console.cloud.google.com/projectcreate, e.g. `nba-rag`,
+   and link a billing account. Light demo traffic stays within the Cloud Run free tier,
+   but a billing account is still required. Stored images may cost a few cents a month.
+   See https://cloud.google.com/run/pricing.
+2. Install the CLI and log in:
 
    ```bash
-   hf auth login
-   hf upload <hf-user>/nba-rag backend . --repo-type space \
-     --exclude "data/*" "tests/*" ".venv/*" "**/__pycache__/*"
+   brew install --cask google-cloud-sdk
+   gcloud auth login
+   gcloud config set project <project-id>
+   gcloud config set run/region us-central1
+   gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com
    ```
 
-4. Wait for the build (a few minutes: torch, the Wikipedia fetch and embedding). The
-   API is then live at `https://<hf-user>-nba-rag.hf.space`. Check it:
+## 2. Backend: Cloud Run
 
-   ```bash
-   curl -X POST https://<hf-user>-nba-rag.hf.space/search \
-     -H 'content-type: application/json' -d '{"question": "Who won the 2016 NBA Finals?"}'
-   ```
+Deploy from the repo root:
 
-To redeploy after a backend change, repeat step 3.
+```bash
+gcloud run deploy nba-rag --source backend \
+  --port 7860 --memory 2Gi --cpu 1 \
+  --min-instances 0 --max-instances 2 \
+  --allow-unauthenticated \
+  --set-env-vars NBA_RAG_ALLOWED_ORIGINS=http://localhost:3000
+```
 
-## 2. Frontend: Vercel
+- The first deploy asks to create an Artifact Registry repository
+  (`cloud-run-source-deploy`). Answer yes.
+- The build takes about 5–10 minutes: torch, the Wikipedia fetch and embedding. The
+  build log should show `Built 466 Chunks from 5 Articles`.
+- When it finishes, it prints the service URL, e.g.
+  `https://nba-rag-<hash>-uc.a.run.app`. Check it:
+
+  ```bash
+  curl -X POST https://nba-rag-<hash>-uc.a.run.app/search \
+    -H 'content-type: application/json' -d '{"question": "Who won the 2016 NBA Finals?"}'
+  ```
+
+Notes:
+- `--max-instances 2` caps how far a traffic spike can scale, and so caps the cost.
+- `--allow-unauthenticated` makes the API public. Browsers still need an allowed origin
+  (step 4).
+- The Wikimedia user agent's contact defaults to this project's GitHub issues URL.
+  Source deploys can't pass build args, so to use your own address, change the
+  `NBA_RAG_CONTACT` default in `backend/Dockerfile`.
+
+To redeploy after a backend change, run the command again **without**
+`--set-env-vars`, which would reset the allowed origins. Redeploys keep the variables
+already set on the service:
+
+```bash
+gcloud run deploy nba-rag --source backend
+```
+
+## 3. Frontend: Vercel
 
 1. Import `milanmos13/RagProgram` at https://vercel.com/new and set **Root Directory**
    to `frontend`. The framework preset is detected as Next.js.
-2. Add the environment variable `NEXT_PUBLIC_API_URL=https://<hf-user>-nba-rag.hf.space`.
-   It is inlined at build time, so you must redeploy after changing it.
+2. Add the environment variable
+   `NEXT_PUBLIC_API_URL=https://nba-rag-<hash>-uc.a.run.app`. It is inlined at build
+   time, so you must redeploy after changing it.
 3. Deploy. Pushes to `main` redeploy automatically.
 
-## 3. Connect them
+## 4. Connect them
 
-Set the Space variable `NBA_RAG_ALLOWED_ORIGINS` to the Vercel production URL. Saving
-a variable restarts the Space; if it doesn't, use **Restart** in the Space menu (no
-rebuild needed, since this is a runtime variable). Open the Vercel URL and run a search.
+Allow the Vercel production URL to call the API. This creates a new revision with the
+updated variable; it doesn't rebuild the image:
 
-The API rejects browser requests from any other origin, including Vercel preview
-deployments.
+```bash
+gcloud run services update nba-rag \
+  --update-env-vars NBA_RAG_ALLOWED_ORIGINS=https://<your-app>.vercel.app
+```
+
+To allow several origins, change gcloud's list delimiter so the commas survive:
+
+```bash
+gcloud run services update nba-rag \
+  --update-env-vars '^@^NBA_RAG_ALLOWED_ORIGINS=https://<your-app>.vercel.app,http://localhost:3000'
+```
+
+Open the Vercel URL and run a search. The API rejects browser requests from any other
+origin, including Vercel preview deployments.
 
 ## Checking the production image locally
 

@@ -18,10 +18,9 @@ RUN pip install -e ".[ml,dev]"
 EXPOSE 8000
 CMD ["uvicorn", "nba_rag_api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "src"]
 
-# Production (Hugging Face Docker Space, which builds the last stage).
+# Production (Google Cloud Run, whose source deploys build the last stage).
 # The Corpus, index and embedding model are baked in from the manifest at build time,
-# so the container starts serving without network access. Not /data: Spaces mount
-# persistent storage there at runtime.
+# so the container starts serving without network access or a rebuild.
 FROM base AS prod
 ARG NBA_RAG_CONTACT=https://github.com/milanmos13/RagProgram/issues
 ENV HF_HOME=/opt/nba-rag/models \
@@ -29,7 +28,7 @@ ENV HF_HOME=/opt/nba-rag/models \
 COPY manifest.json ./
 RUN python -m nba_rag.build --manifest manifest.json --contact "$NBA_RAG_CONTACT"
 ENV HF_HUB_OFFLINE=1
-# Spaces run the container as UID 1000.
+# Run as an unprivileged user; the baked files only need to be readable.
 USER 1000
 EXPOSE 7860
 CMD ["uvicorn", "nba_rag_api.main:app", "--host", "0.0.0.0", "--port", "7860"]

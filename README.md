@@ -52,7 +52,7 @@ production image builds and serves a search offline.
 
 ## Deploying
 
-The backend runs in a Hugging Face Docker Space and the frontend on Vercel. See
+The backend runs on Google Cloud Run and the frontend on Vercel. See
 [docs/deploy.md](docs/deploy.md).
 
 ## Baseline retrieval
