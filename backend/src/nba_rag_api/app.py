@@ -48,7 +48,8 @@ def create_app(configurations: dict[str, Configuration], *, allowed_origins: lis
     app = FastAPI(title="NBA History RAG")
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=allowed_origins,
+        # Browsers send Origin without a trailing slash; settings are often pasted with one.
+        allow_origins=[o.strip().rstrip("/") for o in allowed_origins if o.strip()],
         allow_methods=["GET", "POST"],
         allow_headers=["Content-Type"],
     )

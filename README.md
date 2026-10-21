@@ -47,7 +47,13 @@ pip install -e ".[ml]" && pytest -m slow          # real bge-small model
 cd frontend && npm ci && npm test                  # Vitest + React Testing Library + MSW
 ```
 
-CI runs ruff, eslint, tsc and the unit tests on every push.
+CI runs ruff, eslint, tsc and the unit tests on every push, and checks that the
+production image builds and serves a search offline.
+
+## Deploying
+
+The backend runs in a Hugging Face Docker Space and the frontend on Vercel. See
+[docs/deploy.md](docs/deploy.md).
 
 ## Baseline retrieval
 

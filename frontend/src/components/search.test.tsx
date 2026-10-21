@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { delay, http, HttpResponse } from "msw";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { API_URL, server } from "@/test/server";
 import { Search } from "./search";
 
@@ -25,9 +25,9 @@ const CURRY_LEAD = {
   revision_url: "https://en.wikipedia.org/w/index.php?title=Stephen_Curry&oldid=1381099564",
 };
 
-async function ask(question: string) {
+async function ask(question: string, Component: typeof Search = Search) {
   const user = userEvent.setup();
-  render(<Search />);
+  render(<Component />);
   await user.type(screen.getByRole("searchbox", { name: /question/i }), question);
   await user.click(screen.getByRole("button", { name: /search/i }));
 }
@@ -100,5 +100,26 @@ describe("Search", () => {
     await ask("Curry");
 
     expect(await screen.findByRole("alert")).toHaveTextContent(/search failed/i);
+  });
+
+  describe("backend URL", () => {
+    afterEach(() => {
+      vi.unstubAllEnvs();
+    });
+
+    it("comes from NEXT_PUBLIC_API_URL, even when set with a trailing slash", async () => {
+      vi.stubEnv("NEXT_PUBLIC_API_URL", "https://someone-nba-rag.hf.space/");
+      vi.resetModules();
+      const { Search: DeployedSearch } = await import("./search");
+      server.use(
+        http.post("https://someone-nba-rag.hf.space/search", () =>
+          HttpResponse.json({ configuration: "baseline", results: [CURRY_LEAD] }),
+        ),
+      );
+
+      await ask("Curry", DeployedSearch);
+
+      expect(await screen.findByRole("article")).toHaveTextContent("Stephen Curry");
+    });
   });
 });

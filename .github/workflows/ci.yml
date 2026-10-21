@@ -38,3 +38,12 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
+
+  production-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the production backend image (bakes Corpus, index and model)
+        run: docker build --target prod -t nba-rag-backend:prod backend
+      - name: Serve a search offline as UID 1000
+        run: scripts/smoke-test-image.sh nba-rag-backend:prod

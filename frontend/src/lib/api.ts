@@ -15,7 +15,8 @@ export type SearchResponse = {
   results: SearchResult[];
 };
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+// Set at build time (Vercel project settings); inlined into the client bundle.
+const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000").replace(/\/+$/, "");
 
 export async function search(question: string): Promise<SearchResponse> {
   const response = await fetch(`${API_URL}/search`, {

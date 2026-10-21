@@ -83,3 +83,21 @@ def test_cors_allows_only_the_frontend_origin(client):
 
     assert allowed.headers["access-control-allow-origin"] == FRONTEND
     assert "access-control-allow-origin" not in blocked.headers
+
+
+def test_cors_allow_list_tolerates_how_origins_are_typed_into_settings(corpus):
+    vercel = "https://nba-rag.vercel.app"
+    app = create_app(
+        {"baseline": build_baseline(corpus, KeywordEmbedder())},
+        allowed_origins=[f" {vercel}/", "http://localhost:3000", ""],
+    )
+    client = TestClient(app)
+
+    response = client.post("/search", json={"question": "Curry"}, headers={"Origin": vercel})
+    blocked = client.post(
+        "/search", json={"question": "Curry"}, headers={"Origin": "https://nba-rag-fork.vercel.app"}
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == vercel
+    assert "access-control-allow-origin" not in blocked.headers
