@@ -1,5 +1,6 @@
 """Thin HTTP layer: translates requests into nba_rag calls and nothing more."""
 
+from pathlib import Path
 from typing import Annotated
 
 from fastapi import FastAPI, HTTPException
@@ -7,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, StringConstraints
 
 from nba_rag.corpus import Origin
+from nba_rag.eval import load_latest_results
 from nba_rag.retrieval import Configuration, ScoredChunk, retrieve
 
 
@@ -44,7 +46,12 @@ class SearchResponse(BaseModel):
     results: list[SearchResult]
 
 
-def create_app(configurations: dict[str, Configuration], *, allowed_origins: list[str]) -> FastAPI:
+def create_app(
+    configurations: dict[str, Configuration],
+    *,
+    allowed_origins: list[str],
+    results_dir: Path,
+) -> FastAPI:
     app = FastAPI(title="NBA History RAG")
     app.add_middleware(
         CORSMiddleware,
@@ -64,5 +71,12 @@ def create_app(configurations: dict[str, Configuration], *, allowed_origins: lis
             configuration=configuration.name,
             results=[SearchResult.from_scored(r) for r in results],
         )
+
+    @app.get("/results")
+    def results() -> dict:
+        latest = load_latest_results(results_dir)
+        if latest is None:
+            raise HTTPException(404, "No eval results yet")
+        return latest
 
     return app

@@ -2,7 +2,8 @@
 # Smoke-test the production backend image.
 #
 # The image must answer a search with no network access (Corpus, index and model are
-# baked in at build time) while running as the unprivileged UID 1000.
+# baked in at build time) while running as the unprivileged UID 1000, and serve the
+# committed eval results.
 #
 #   scripts/smoke-test-image.sh nba-rag-backend:prod
 set -euo pipefail
@@ -24,6 +25,9 @@ results = json.load(urllib.request.urlopen(request, timeout=10))["results"]
 assert len(results) == 3, results
 assert all("oldid=" in r["revision_url"] for r in results), results
 print("top result:", results[0]["id"])
+latest = json.load(urllib.request.urlopen("http://127.0.0.1:7860/results", timeout=10))
+assert latest["question_count"] > 0, latest
+print("eval results:", latest["configuration"], latest["split"], latest["manifest_version"])
 '
 
 for _ in $(seq 1 90); do

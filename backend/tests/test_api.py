@@ -1,8 +1,11 @@
+from datetime import UTC, datetime
+
 import pytest
 from fastapi.testclient import TestClient
 
 from fakes import KeywordEmbedder
 from nba_rag.corpus import Corpus
+from nba_rag.eval import EvalQuestion, Evidence, evaluate, save_results
 from nba_rag.retrieval import build_baseline
 from nba_rag_api.app import create_app
 
@@ -10,9 +13,16 @@ FRONTEND = "http://localhost:3000"
 
 
 @pytest.fixture
-def client(corpus: Corpus) -> TestClient:
+def results_dir(tmp_path):
+    return tmp_path / "results"
+
+
+@pytest.fixture
+def client(corpus: Corpus, results_dir) -> TestClient:
     baseline = build_baseline(corpus, KeywordEmbedder())
-    return TestClient(create_app({"baseline": baseline}, allowed_origins=[FRONTEND]))
+    return TestClient(
+        create_app({"baseline": baseline}, allowed_origins=[FRONTEND], results_dir=results_dir)
+    )
 
 
 def test_search_returns_ranked_chunks_in_the_agreed_shape(client):
@@ -85,11 +95,12 @@ def test_cors_allows_only_the_frontend_origin(client):
     assert "access-control-allow-origin" not in blocked.headers
 
 
-def test_cors_allow_list_tolerates_how_origins_are_typed_into_settings(corpus):
+def test_cors_allow_list_tolerates_how_origins_are_typed_into_settings(corpus, tmp_path):
     vercel = "https://nba-rag.vercel.app"
     app = create_app(
         {"baseline": build_baseline(corpus, KeywordEmbedder())},
         allowed_origins=[f" {vercel}/", "http://localhost:3000", ""],
+        results_dir=tmp_path,
     )
     client = TestClient(app)
 
@@ -101,3 +112,40 @@ def test_cors_allow_list_tolerates_how_origins_are_typed_into_settings(corpus):
     assert response.status_code == 200
     assert response.headers["access-control-allow-origin"] == vercel
     assert "access-control-allow-origin" not in blocked.headers
+
+
+def test_results_serves_the_latest_eval_run(client, corpus, results_dir):
+    mvp = EvalQuestion(
+        id="q1",
+        text="Was Curry the unanimous MVP?",
+        question_type="lookup",
+        source="hand-written",
+        split="dev",
+        evidence=[Evidence("Stephen Curry", "Curry became the first unanimous MVP")],
+    )
+    results = evaluate(build_baseline(corpus, KeywordEmbedder()), [mvp], split="dev")
+    save_results(results, results_dir, created_at=datetime(2026, 10, 21, tzinfo=UTC))
+
+    response = client.get("/results")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert {k: body[k] for k in ("configuration", "split", "manifest_version", "created_at")} == {
+        "configuration": "baseline",
+        "split": "dev",
+        "manifest_version": "test",
+        "created_at": "2026-10-21T00:00:00+00:00",
+    }
+    assert body["question_count"] == 1
+    assert body["metrics"] == {
+        "recall_at_1": 1.0,
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr_at_10": 1.0,
+    }
+    assert body["multi_hop"]["question_count"] == 0
+    assert body["questions"][0]["evidence_ranks"] == [1]
+
+
+def test_results_is_not_found_before_any_eval_run(client):
+    assert client.get("/results").status_code == 404

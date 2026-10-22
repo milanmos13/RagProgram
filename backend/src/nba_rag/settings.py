@@ -9,3 +9,7 @@ CHUNK_SIZE = 200
 
 def data_dir() -> Path:
     return Path(os.environ.get("NBA_RAG_DATA_DIR", "data"))
+
+
+def results_dir() -> Path:
+    return Path(os.environ.get("NBA_RAG_RESULTS_DIR", "results"))

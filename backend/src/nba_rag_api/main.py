@@ -7,7 +7,7 @@ import os
 
 from nba_rag.embedders import TutorialEmbedder
 from nba_rag.retrieval import build_baseline
-from nba_rag.settings import EMBEDDING_MODEL, data_dir
+from nba_rag.settings import EMBEDDING_MODEL, data_dir, results_dir
 from nba_rag.store import load_built
 from nba_rag_api.app import create_app
 
@@ -22,4 +22,5 @@ baseline = build_baseline(corpus, TutorialEmbedder(EMBEDDING_MODEL), matrix)
 app = create_app(
     {baseline.name: baseline},
     allowed_origins=os.environ.get("NBA_RAG_ALLOWED_ORIGINS", "http://localhost:3000").split(","),
+    results_dir=results_dir(),
 )

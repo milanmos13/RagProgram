@@ -1,0 +1,252 @@
+{
+  "created_at": "2026-10-22T04:37:59.677484+00:00",
+  "configuration": "baseline",
+  "split": "all",
+  "manifest_version": "tracer-5",
+  "question_count": 10,
+  "metrics": {
+    "recall_at_1": 0.3,
+    "recall_at_5": 0.8,
+    "recall_at_10": 0.9,
+    "mrr_at_10": 0.4742857142857143
+  },
+  "multi_hop": {
+    "question_count": 2,
+    "all_evidence": {
+      "recall_at_1": 0.0,
+      "recall_at_5": 0.5,
+      "recall_at_10": 0.5,
+      "mrr_at_10": 0.1
+    },
+    "any_evidence": {
+      "recall_at_1": 0.5,
+      "recall_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "mrr_at_10": 0.75
+    }
+  },
+  "questions": [
+    {
+      "id": "q01",
+      "text": "Where was Stephen Curry born?",
+      "question_type": "lookup",
+      "source": "hand-written",
+      "split": "dev",
+      "evidence_ranks": [
+        1
+      ],
+      "retrieved": [
+        "Stephen Curry#6",
+        "Stephen Curry#0",
+        "Stephen Curry#100",
+        "Stephen Curry#1",
+        "Stephen Curry#8",
+        "Stephen Curry#56",
+        "Stephen Curry#7",
+        "Stephen Curry#101",
+        "Stephen Curry#105",
+        "Stephen Curry#9"
+      ]
+    },
+    {
+      "id": "q02",
+      "text": "What was the final score of Game 7 of the 2016 NBA Finals?",
+      "question_type": "lookup",
+      "source": "hand-written",
+      "split": "test",
+      "evidence_ranks": [
+        5
+      ],
+      "retrieved": [
+        "2016 NBA Finals#0",
+        "2016 NBA Finals#39",
+        "2016 NBA Finals#40",
+        "Golden State Warriors#68",
+        "2016 NBA Finals#27",
+        "2015–16 NBA season#0",
+        "2015–16 NBA season#5",
+        "Stephen Curry#45",
+        "2016 NBA Finals#38",
+        "Golden State Warriors#84"
+      ]
+    },
+    {
+      "id": "q03",
+      "text": "Which pick was LeBron James in the 2003 NBA draft?",
+      "question_type": "lookup",
+      "source": "hand-written",
+      "split": "test",
+      "evidence_ranks": [
+        2
+      ],
+      "retrieved": [
+        "LeBron James#2",
+        "LeBron James#15",
+        "LeBron James#20",
+        "LeBron James#11",
+        "LeBron James#79",
+        "LeBron James#17",
+        "LeBron James#3",
+        "LeBron James#59",
+        "LeBron James#50",
+        "LeBron James#16"
+      ]
+    },
+    {
+      "id": "q04",
+      "text": "What was the Warriors' regular season record in 2015–16?",
+      "question_type": "lookup",
+      "source": "hand-written",
+      "split": "dev",
+      "evidence_ranks": [
+        5
+      ],
+      "retrieved": [
+        "Golden State Warriors#64",
+        "Golden State Warriors#60",
+        "Stephen Curry#37",
+        "Golden State Warriors#66",
+        "2016 NBA Finals#6",
+        "Stephen Curry#43",
+        "2015–16 NBA season#0",
+        "Golden State Warriors#2",
+        "Stephen Curry#153",
+        "Golden State Warriors#70"
+      ]
+    },
+    {
+      "id": "q05",
+      "text": "Who won the MVP award in the 2015–16 NBA season?",
+      "question_type": "lookup",
+      "source": "hand-written",
+      "split": "test",
+      "evidence_ranks": [
+        1
+      ],
+      "retrieved": [
+        "2015–16 NBA season#0",
+        "Golden State Warriors#66",
+        "2016 NBA Finals#0",
+        "Golden State Warriors#60",
+        "Stephen Curry#37",
+        "Stephen Curry#3",
+        "Golden State Warriors#2",
+        "Golden State Warriors#62",
+        "Stephen Curry#34",
+        "Stephen Curry#43"
+      ]
+    },
+    {
+      "id": "q06",
+      "text": "When did the Warriors move to the San Francisco Bay Area?",
+      "question_type": "lookup",
+      "source": "hand-written",
+      "split": "test",
+      "evidence_ranks": [
+        2
+      ],
+      "retrieved": [
+        "Golden State Warriors#0",
+        "Golden State Warriors#8",
+        "Golden State Warriors#76",
+        "Golden State Warriors#12",
+        "Stephen Curry#153",
+        "Golden State Warriors#92",
+        "Golden State Warriors#103",
+        "Golden State Warriors#11",
+        "Golden State Warriors#90",
+        "Golden State Warriors#97"
+      ]
+    },
+    {
+      "id": "q07",
+      "text": "Why is LeBron James's block in Game 7 of the 2016 Finals so famous?",
+      "question_type": "explanation",
+      "source": "hand-written",
+      "split": "dev",
+      "evidence_ranks": [
+        1
+      ],
+      "retrieved": [
+        "2016 NBA Finals#27",
+        "2016 NBA Finals#28",
+        "2016 NBA Finals#2",
+        "2016 NBA Finals#0",
+        "LeBron James#39",
+        "2016 NBA Finals#24",
+        "2016 NBA Finals#38",
+        "2016 NBA Finals#39",
+        "LeBron James#19",
+        "2016 NBA Finals#18"
+      ]
+    },
+    {
+      "id": "q08",
+      "text": "How did the Cavaliers win the 2016 NBA Finals after falling behind?",
+      "question_type": "explanation",
+      "source": "hand-written",
+      "split": "test",
+      "evidence_ranks": [
+        7
+      ],
+      "retrieved": [
+        "2016 NBA Finals#0",
+        "Golden State Warriors#68",
+        "LeBron James#18",
+        "2016 NBA Finals#44",
+        "LeBron James#41",
+        "2016 NBA Finals#36",
+        "2016 NBA Finals#1",
+        "2016 NBA Finals#10",
+        "LeBron James#43",
+        "LeBron James#38"
+      ]
+    },
+    {
+      "id": "q09",
+      "text": "Which city were both Stephen Curry and LeBron James born in?",
+      "question_type": "multi-hop",
+      "source": "hand-written",
+      "split": "test",
+      "evidence_ranks": [
+        1,
+        5
+      ],
+      "retrieved": [
+        "Stephen Curry#6",
+        "LeBron James#0",
+        "LeBron James#2",
+        "Stephen Curry#0",
+        "LeBron James#4",
+        "Stephen Curry#58",
+        "LeBron James#3",
+        "Golden State Warriors#3",
+        "Golden State Warriors#0",
+        "2016 NBA Finals#0"
+      ]
+    },
+    {
+      "id": "q10",
+      "text": "Who was the regular-season MVP and who was the Finals MVP in 2016?",
+      "question_type": "multi-hop",
+      "source": "hand-written",
+      "split": "test",
+      "evidence_ranks": [
+        2,
+        null
+      ],
+      "retrieved": [
+        "2016 NBA Finals#0",
+        "2015–16 NBA season#0",
+        "Golden State Warriors#66",
+        "2016 NBA Finals#44",
+        "Golden State Warriors#2",
+        "Stephen Curry#3",
+        "Golden State Warriors#3",
+        "2015–16 NBA season#5",
+        "Golden State Warriors#70",
+        "Stephen Curry#39"
+      ]
+    }
+  ]
+}

@@ -13,7 +13,9 @@ Articles, with core retrieval built from scratch and judged by an Eval set.
 backend/
   manifest.json      Articles and pinned revision IDs: the only Corpus artifact in git
   src/nba_rag/       the library: Corpus building, Embedders, retrieval
-  src/nba_rag_api/   thin FastAPI layer (POST /search)
+  eval_set.jsonl     the Eval set
+  results/           eval results files, one per configuration, split and manifest
+  src/nba_rag_api/   thin FastAPI layer (POST /search, GET /results)
   tests/             pytest, with saved HTML fixtures and a fake Embedder
 frontend/            Next.js (App Router, TypeScript, Tailwind, shadcn/ui)
 docker-compose.yml   development stack
@@ -38,6 +40,23 @@ Search directly:
 curl -X POST localhost:8000/search -H 'content-type: application/json' \
   -d '{"question": "Who blocked Andre Iguodala in Game 7?", "k": 3}'
 ```
+
+## Evaluating retrieval
+
+`backend/eval_set.jsonl` holds the Eval set: one Eval question per line, with its
+question type, source, split and verbatim Evidence spans. A retrieved Chunk is a hit
+when it contains an Evidence span after whitespace normalization; a span split across
+two Chunks counts as a miss ([ADR 0001](docs/adr/0001-evidence-not-chunk-ids.md)).
+
+```bash
+# Score a configuration on a split (dev, test or all) and write backend/results/.
+docker compose run --rm backend python -m nba_rag.evaluate --configuration baseline --split all
+```
+
+The command first checks that every Evidence span is still in the built Corpus. Results
+files are committed; the API serves the latest at `GET /results` and the frontend shows
+it at `/results`. Commit new results before deploying, because the production image
+ships the committed files.
 
 ## Tests
 

@@ -28,6 +28,8 @@ ENV HF_HOME=/opt/nba-rag/models \
 COPY manifest.json ./
 RUN python -m nba_rag.build --manifest manifest.json --contact "$NBA_RAG_CONTACT"
 ENV HF_HUB_OFFLINE=1
+# Committed eval results, served by GET /results.
+COPY results ./results
 # Run as an unprivileged user; the baked files only need to be readable.
 USER 1000
 EXPOSE 7860
