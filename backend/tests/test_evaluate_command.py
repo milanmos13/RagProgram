@@ -28,7 +28,9 @@ def eval_line(qid, split, evidence=CURRY_BORN):
 @pytest.fixture
 def workspace(corpus, tmp_path, monkeypatch):
     """A built Corpus in the data dir, a fake Embedder, and an empty results dir."""
-    save_built(tmp_path / "data", corpus, build_baseline(corpus, KeywordEmbedder()).matrix)
+    save_built(
+        tmp_path / "data", corpus, {"tutorial": build_baseline(corpus, KeywordEmbedder()).matrix}
+    )
     monkeypatch.setenv("NBA_RAG_DATA_DIR", str(tmp_path / "data"))
     monkeypatch.setenv("NBA_RAG_RESULTS_DIR", str(tmp_path / "results"))
     monkeypatch.setattr(configurations, "TutorialEmbedder", lambda model_name: KeywordEmbedder())

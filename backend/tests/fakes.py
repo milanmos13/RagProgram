@@ -4,6 +4,8 @@ from pathlib import Path
 
 import numpy as np
 
+from nba_rag.corpus import ManifestEntry
+
 FIXTURES = Path(__file__).parent / "fixtures" / "html"
 
 
@@ -44,3 +46,22 @@ class KeywordEmbedder:
     def _vector(self, text: str) -> list[float]:
         words = [w.strip(".,?!()").lower() for w in text.split()]
         return [float(words.count(keyword)) for keyword in self.VOCABULARY]
+
+
+class FakeCatalogue:
+    """Catalogue serving fixed lists; every title's current revision is its position + 1000."""
+
+    def __init__(self, franchises: list[str], anniversary_team: list[str]) -> None:
+        self._franchises = franchises
+        self._anniversary_team = anniversary_team
+        self.revisions_requested: list[str] = []
+
+    def franchise_titles(self) -> list[str]:
+        return self._franchises
+
+    def anniversary_team_titles(self) -> list[str]:
+        return self._anniversary_team
+
+    def current_revisions(self, titles: list[str]) -> list[ManifestEntry]:
+        self.revisions_requested.extend(titles)
+        return [ManifestEntry(title, 1000 + i) for i, title in enumerate(titles)]

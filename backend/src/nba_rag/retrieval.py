@@ -18,6 +18,8 @@ class ScoredChunk:
 @dataclass(frozen=True)
 class Configuration:
     name: str
+    embedding_setup: str
+    """Names the stored matrix this configuration searches."""
     manifest_version: str
     chunks: list[Chunk]
     embedder: Embedder
@@ -36,6 +38,7 @@ def build_baseline(
         matrix = embedder.embed_chunks([c.text for c in corpus.chunks])
     return Configuration(
         name="baseline",
+        embedding_setup="tutorial",
         manifest_version=corpus.manifest_version,
         chunks=corpus.chunks,
         embedder=embedder,

@@ -1,7 +1,7 @@
 """The Corpus: pinned Articles parsed into Chunks."""
 
 import json
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Literal, Protocol
 from urllib.parse import quote
@@ -30,6 +30,17 @@ def load_manifest(path: Path) -> Manifest:
     return Manifest(
         version=data["version"],
         articles=[ManifestEntry(**entry) for entry in data["articles"]],
+    )
+
+
+def save_manifest(path: Path, manifest: Manifest) -> None:
+    """Write one Article per line, so manifest diffs read as per-Article changes."""
+    entries = ",\n".join(
+        f"    {json.dumps(asdict(entry), ensure_ascii=False)}" for entry in manifest.articles
+    )
+    path.write_text(
+        f'{{\n  "version": {json.dumps(manifest.version)},\n  "articles": [\n{entries}\n  ]\n}}\n',
+        encoding="utf-8",
     )
 
 

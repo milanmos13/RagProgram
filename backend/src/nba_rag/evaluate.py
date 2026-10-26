@@ -35,13 +35,13 @@ def main(argv: list[str] | None = None) -> None:
     args = parser.parse_args(argv)
 
     eval_set = load_eval_set(args.eval_set)
-    corpus, matrix = load_built(data_dir())
+    corpus, matrices = load_built(data_dir())
     validate_evidence(eval_set, corpus)
     if args.validate_only:
         print(f"All Evidence in {len(eval_set)} Eval questions is in the Corpus.")
         return
 
-    configuration = load_configurations(corpus, matrix)[args.configuration]
+    configuration = load_configurations(corpus, matrices)[args.configuration]
     results = evaluate(configuration, eval_set, args.split)
     path = save_results(results, args.out or results_dir())
 

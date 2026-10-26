@@ -78,3 +78,39 @@ def test_splits_paragraphs_into_chunk_size_pieces_without_crossing_paragraphs():
 def test_article_with_no_prose_fails_loudly():
     with pytest.raises(EmptyArticleError, match="Empty Article"):
         build(ManifestEntry(title="Empty Article", revision_id=333))
+
+
+def test_boilerplate_sections_and_navigation_boxes_contribute_no_chunks():
+    corpus = build(CURRY, FINALS)
+
+    sections = {title for chunk in corpus.chunks for title in chunk.section_path}
+    assert not sections & {"See also", "References", "External links", "Notes", "Citations"}
+    text = " ".join(chunk.text for chunk in corpus.chunks)
+    assert "[1]" not in text
+    assert "Navigation" not in text and "v t e" not in text
+
+
+def test_navigation_boxes_inside_a_prose_section_are_stripped():
+    corpus = build(ManifestEntry(title="Navbox Article", revision_id=444))
+
+    assert [(c.section_path, c.text) for c in corpus.chunks] == [
+        ((), "Prose in the lead."),
+        (("History",), "Prose before the box."),
+        (("History",), "Prose after the box."),
+    ]
+
+
+def test_a_chunk_never_crosses_a_section_boundary_even_when_the_budget_would_allow_it():
+    corpus = build(CURRY, chunk_size=10_000)
+
+    # Every prose paragraph is its own Chunk: nothing is merged into a neighbour in another section.
+    assert [c.section_path for c in corpus.chunks] == [
+        (),
+        (),
+        ("Early life",),
+        (
+            "Professional career",
+            "Golden State Warriors (2009–present)",
+            "2015–16 season: Unanimous MVP",
+        ),
+    ]

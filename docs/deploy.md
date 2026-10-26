@@ -39,7 +39,7 @@ gcloud run deploy nba-rag --source backend \
 - The first deploy asks to create an Artifact Registry repository
   (`cloud-run-source-deploy`). Answer yes.
 - The build takes about 5–10 minutes: torch, the Wikipedia fetch and embedding. The
-  build log should show `Built 466 Chunks from 5 Articles`.
+  build log should show `Built 11373 Chunks from 266 Articles`.
 - When it finishes, it prints the service URL, e.g.
   `https://nba-rag-<hash>-uc.a.run.app`. Check it:
 

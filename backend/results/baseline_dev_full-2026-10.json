@@ -1,0 +1,96 @@
+{
+  "created_at": "2026-10-26T05:14:24.311458+00:00",
+  "configuration": "baseline",
+  "split": "dev",
+  "manifest_version": "full-2026-10",
+  "question_count": 3,
+  "metrics": {
+    "recall_at_1": 0.6666666666666666,
+    "recall_at_5": 0.6666666666666666,
+    "recall_at_10": 1.0,
+    "mrr_at_10": 0.7222222222222222
+  },
+  "multi_hop": {
+    "question_count": 0,
+    "all_evidence": {
+      "recall_at_1": 0.0,
+      "recall_at_5": 0.0,
+      "recall_at_10": 0.0,
+      "mrr_at_10": 0.0
+    },
+    "any_evidence": {
+      "recall_at_1": 0.0,
+      "recall_at_5": 0.0,
+      "recall_at_10": 0.0,
+      "mrr_at_10": 0.0
+    }
+  },
+  "questions": [
+    {
+      "id": "q01",
+      "text": "Where was Stephen Curry born?",
+      "question_type": "lookup",
+      "source": "hand-written",
+      "split": "dev",
+      "evidence_ranks": [
+        1
+      ],
+      "retrieved": [
+        "Stephen Curry#6",
+        "Stephen Curry#0",
+        "Stephen Curry#100",
+        "Stephen Curry#1",
+        "James Harden#4",
+        "Stephen Curry#8",
+        "Stephen Curry#56",
+        "Stephen Curry#7",
+        "Stephen Curry#101",
+        "Stephen Curry#105"
+      ]
+    },
+    {
+      "id": "q04",
+      "text": "What was the Warriors' regular season record in 2015–16?",
+      "question_type": "lookup",
+      "source": "hand-written",
+      "split": "dev",
+      "evidence_ranks": [
+        6
+      ],
+      "retrieved": [
+        "Golden State Warriors#64",
+        "Golden State Warriors#60",
+        "1996 NBA Finals#24",
+        "Stephen Curry#37",
+        "Golden State Warriors#66",
+        "2016 NBA Finals#6",
+        "Stephen Curry#43",
+        "2015–16 NBA season#0",
+        "Golden State Warriors#2",
+        "2017 NBA Finals#3"
+      ]
+    },
+    {
+      "id": "q07",
+      "text": "Why is LeBron James's block in Game 7 of the 2016 Finals so famous?",
+      "question_type": "explanation",
+      "source": "hand-written",
+      "split": "dev",
+      "evidence_ranks": [
+        1
+      ],
+      "retrieved": [
+        "2016 NBA Finals#27",
+        "2016 NBA Finals#28",
+        "2016 NBA Finals#2",
+        "2016 NBA Finals#0",
+        "2017 NBA Finals#10",
+        "LeBron James#39",
+        "2016 NBA Finals#24",
+        "2016 NBA Finals#38",
+        "2016 NBA Finals#39",
+        "LeBron James#19"
+      ]
+    }
+  ]
+}

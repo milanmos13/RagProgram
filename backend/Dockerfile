@@ -26,7 +26,9 @@ ARG NBA_RAG_CONTACT=https://github.com/milanmos13/RagProgram/issues
 ENV HF_HOME=/opt/nba-rag/models \
     NBA_RAG_DATA_DIR=/opt/nba-rag/data
 COPY manifest.json ./
-RUN python -m nba_rag.build --manifest manifest.json --contact "$NBA_RAG_CONTACT"
+# The HTML cache stays outside the data dir so the downloaded Articles aren't baked in.
+RUN python -m nba_rag.build --manifest manifest.json --contact "$NBA_RAG_CONTACT" \
+    --cache-dir /tmp/html-cache && rm -rf /tmp/html-cache
 # Evidence is validated against the Corpus just built, so a manifest change that breaks
 # an Eval question fails the image build instead of scoring as misses later.
 COPY eval_set.jsonl ./

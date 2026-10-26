@@ -19,7 +19,9 @@ def load_main() -> dict:
 
 @pytest.fixture
 def built(corpus, tmp_path, monkeypatch):
-    save_built(tmp_path / "data", corpus, build_baseline(corpus, KeywordEmbedder()).matrix)
+    save_built(
+        tmp_path / "data", corpus, {"tutorial": build_baseline(corpus, KeywordEmbedder()).matrix}
+    )
     monkeypatch.setenv("NBA_RAG_DATA_DIR", str(tmp_path / "data"))
     monkeypatch.setenv("NBA_RAG_RESULTS_DIR", str(tmp_path / "results"))
     monkeypatch.delenv("NBA_RAG_ALLOWED_ORIGINS", raising=False)

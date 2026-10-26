@@ -11,7 +11,9 @@ CONFIGURATION_NAMES = ("baseline",)
 """Cheap to read, so a command can offer them as choices before loading any model."""
 
 
-def load_configurations(corpus: Corpus, matrix: np.ndarray) -> dict[str, Configuration]:
+def load_configurations(
+    corpus: Corpus, matrices: dict[str, np.ndarray]
+) -> dict[str, Configuration]:
     """Every configuration over a built Corpus, reusing its stored embeddings."""
-    baseline = build_baseline(corpus, TutorialEmbedder(EMBEDDING_MODEL), matrix)
+    baseline = build_baseline(corpus, TutorialEmbedder(EMBEDDING_MODEL), matrices["tutorial"])
     return {baseline.name: baseline}
