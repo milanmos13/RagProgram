@@ -33,4 +33,5 @@ COPY results ./results
 # Run as an unprivileged user; the baked files only need to be readable.
 USER 1000
 EXPOSE 7860
-CMD ["uvicorn", "nba_rag_api.main:app", "--host", "0.0.0.0", "--port", "7860"]
+# Shell form so ${PORT} expands: Cloud Run sets PORT, anywhere else it falls back to 7860.
+CMD uvicorn nba_rag_api.main:app --host 0.0.0.0 --port ${PORT:-7860}

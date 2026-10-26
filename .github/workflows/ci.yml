@@ -47,3 +47,5 @@ jobs:
         run: docker build --target prod -t nba-rag-backend:prod backend
       - name: Serve a search offline as UID 1000
         run: scripts/smoke-test-image.sh nba-rag-backend:prod
+      - name: Serve on the port in $PORT, as Cloud Run sets it
+        run: scripts/smoke-test-image.sh nba-rag-backend:prod 8080

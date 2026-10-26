@@ -30,7 +30,7 @@ Deploy from the repo root:
 
 ```bash
 gcloud run deploy nba-rag --source backend \
-  --port 7860 --memory 2Gi --cpu 1 \
+  --memory 2Gi --cpu 1 \
   --min-instances 0 --max-instances 2 \
   --allow-unauthenticated \
   --set-env-vars NBA_RAG_ALLOWED_ORIGINS=http://localhost:3000
