@@ -3,6 +3,7 @@ import json
 import pytest
 
 from fakes import KeywordEmbedder
+from nba_rag import configurations
 from nba_rag import evaluate as evaluate_command
 from nba_rag.eval import InvalidEvidenceError
 from nba_rag.retrieval import build_baseline
@@ -30,7 +31,7 @@ def workspace(corpus, tmp_path, monkeypatch):
     save_built(tmp_path / "data", corpus, build_baseline(corpus, KeywordEmbedder()).matrix)
     monkeypatch.setenv("NBA_RAG_DATA_DIR", str(tmp_path / "data"))
     monkeypatch.setenv("NBA_RAG_RESULTS_DIR", str(tmp_path / "results"))
-    monkeypatch.setattr(evaluate_command, "TutorialEmbedder", lambda model_name: KeywordEmbedder())
+    monkeypatch.setattr(configurations, "TutorialEmbedder", lambda model_name: KeywordEmbedder())
     return tmp_path
 
 
@@ -65,6 +66,29 @@ def test_scores_the_split_it_is_asked_for(workspace):
         "baseline_all_test.json",
         "baseline_test_test.json",
     ]
+
+
+def test_validate_only_checks_the_evidence_without_scoring_or_loading_the_model(
+    workspace, monkeypatch, capsys
+):
+    def no_model(model_name):
+        raise AssertionError("validation must not load the embedding model")
+
+    monkeypatch.setattr(configurations, "TutorialEmbedder", no_model)
+    eval_set = write_eval_set(workspace, eval_line("q1", "dev"), eval_line("q2", "test"))
+
+    evaluate_command.main(["--eval-set", eval_set, "--validate-only"])
+
+    assert not (workspace / "results").exists()
+    assert "2 Eval questions" in capsys.readouterr().out
+
+
+def test_validate_only_still_fails_on_broken_evidence(workspace):
+    broken = {"article_title": "Stephen Curry", "text": "Curry was born in Charlotte."}
+    eval_set = write_eval_set(workspace, eval_line("q1", "dev", broken))
+
+    with pytest.raises(InvalidEvidenceError, match="q1"):
+        evaluate_command.main(["--eval-set", eval_set, "--validate-only"])
 
 
 def test_broken_evidence_fails_loudly_instead_of_scoring_misses(workspace):

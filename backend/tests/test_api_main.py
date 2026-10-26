@@ -6,7 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from fakes import KeywordEmbedder
-from nba_rag import embedders
+from nba_rag import configurations
 from nba_rag.retrieval import build_baseline
 from nba_rag.store import save_built
 
@@ -23,7 +23,7 @@ def built(corpus, tmp_path, monkeypatch):
     monkeypatch.setenv("NBA_RAG_DATA_DIR", str(tmp_path / "data"))
     monkeypatch.setenv("NBA_RAG_RESULTS_DIR", str(tmp_path / "results"))
     monkeypatch.delenv("NBA_RAG_ALLOWED_ORIGINS", raising=False)
-    monkeypatch.setattr(embedders, "TutorialEmbedder", lambda model_name: KeywordEmbedder())
+    monkeypatch.setattr(configurations, "TutorialEmbedder", lambda model_name: KeywordEmbedder())
 
 
 def preflight(client, origin):

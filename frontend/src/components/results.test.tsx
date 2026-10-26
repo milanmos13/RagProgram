@@ -47,6 +47,16 @@ describe("Results", () => {
     );
   });
 
+  it("explains how a question counts as found", async () => {
+    serve(() => HttpResponse.json(RESULTS));
+
+    render(<Results />);
+
+    await screen.findByRole("table");
+    expect(screen.getByText(/found at the rank by which all of its Evidence/i)).toBeInTheDocument();
+    expect(screen.getByText(/any Evidence.*first Chunk containing any/i)).toBeInTheDocument();
+  });
+
   it("omits Multi-hop rows when the run has no Multi-hop questions", async () => {
     serve(() =>
       HttpResponse.json({

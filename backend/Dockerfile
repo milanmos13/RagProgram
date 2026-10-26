@@ -27,6 +27,10 @@ ENV HF_HOME=/opt/nba-rag/models \
     NBA_RAG_DATA_DIR=/opt/nba-rag/data
 COPY manifest.json ./
 RUN python -m nba_rag.build --manifest manifest.json --contact "$NBA_RAG_CONTACT"
+# Evidence is validated against the Corpus just built, so a manifest change that breaks
+# an Eval question fails the image build instead of scoring as misses later.
+COPY eval_set.jsonl ./
+RUN python -m nba_rag.evaluate --validate-only
 ENV HF_HUB_OFFLINE=1
 # Committed eval results, served by GET /results.
 COPY results ./results

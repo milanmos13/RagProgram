@@ -96,6 +96,11 @@ function ResultsTable({ results }: { results: EvalResults }) {
           )}
         </TableBody>
       </Table>
+      <p className="text-sm text-muted-foreground">
+        A question counts as found at the rank by which all of its Evidence has been retrieved.
+        For Multi-hop questions, any Evidence instead uses the rank of the first Chunk containing
+        any one span.
+      </p>
     </div>
   );
 }
