@@ -150,6 +150,24 @@ def test_validator_rejects_evidence_not_found_verbatim_in_its_article(corpus):
     assert "q1" not in message
 
 
+def test_validator_rejects_evidence_spanning_more_than_one_sentence(corpus):
+    # ADR 0001: Evidence is one sentence or one row. Two sentences from different
+    # paragraphs pass a plain substring check on the joined Article but can never be hit.
+    two_sentences = question(
+        "bad1",
+        "?",
+        (CURRY, "He is widely regarded as the greatest shooter in NBA history. Curry was born"),
+    )
+
+    with pytest.raises(InvalidEvidenceError) as error:
+        validate_evidence([*EVAL_SET, two_sentences], corpus)
+
+    message = str(error.value)
+    assert "bad1" in message
+    assert "more than one sentence" in message
+    assert "q1" not in message
+
+
 VALID_LINE = (
     '{"id": "q0", "text": "?", "question_type": "lookup", "source": "web", "split": "dev", '
     '"evidence": [{"article_title": "A", "text": "x"}]}'

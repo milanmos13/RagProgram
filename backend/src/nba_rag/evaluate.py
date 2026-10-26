@@ -1,6 +1,9 @@
 """One-off command: score a configuration on a split of the Eval set and write results.
 
-    python -m nba_rag.evaluate --configuration baseline --split all
+    python -m nba_rag.evaluate --configuration baseline --split dev
+
+The split defaults to dev, so tuning a configuration doesn't spend the test questions;
+ask for ``--split test`` deliberately, and ``--split all`` mixes both.
 
 Every Evidence span is checked against the built Corpus first, so Evidence broken by a
 revision change fails loudly instead of scoring as misses.
@@ -17,13 +20,13 @@ from nba_rag.settings import EMBEDDING_MODEL, data_dir, results_dir
 from nba_rag.store import load_built
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--configuration", choices=["baseline"], default="baseline")
-    parser.add_argument("--split", choices=[*get_args(Split), "all"], default="all")
+    parser.add_argument("--split", choices=[*get_args(Split), "all"], default="dev")
     parser.add_argument("--eval-set", type=Path, default=Path("eval_set.jsonl"))
     parser.add_argument("--out", type=Path, default=None, help="defaults to NBA_RAG_RESULTS_DIR")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     eval_set = load_eval_set(args.eval_set)
     corpus, matrix = load_built(data_dir())

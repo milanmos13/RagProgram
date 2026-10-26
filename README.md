@@ -49,11 +49,13 @@ when it contains an Evidence span after whitespace normalization; a span split a
 two Chunks counts as a miss ([ADR 0001](docs/adr/0001-evidence-not-chunk-ids.md)).
 
 ```bash
-# Score a configuration on a split (dev, test or all) and write backend/results/.
-docker compose run --rm backend python -m nba_rag.evaluate --configuration baseline --split all
+# Score a configuration on a split and write backend/results/. The split defaults to
+# dev; test is for deliberate final runs, and all mixes the two.
+docker compose run --rm backend python -m nba_rag.evaluate --configuration baseline --split dev
 ```
 
-The command first checks that every Evidence span is still in the built Corpus. Results
+The command first checks that every Evidence span is still in the built Corpus and is a
+single sentence. Results
 files are committed; the API serves the latest at `GET /results` and the frontend shows
 it at `/results`. Commit new results before deploying, because the production image
 ships the committed files.

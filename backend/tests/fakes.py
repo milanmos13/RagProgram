@@ -31,6 +31,9 @@ class KeywordEmbedder:
     def __init__(self) -> None:
         self.chunks_embedded = 0
 
+    def count_tokens(self, text: str) -> int:
+        return count_words(text)
+
     def embed_chunks(self, texts: list[str]) -> np.ndarray:
         self.chunks_embedded += len(texts)
         return np.array([self._vector(text) for text in texts])

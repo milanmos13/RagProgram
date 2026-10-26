@@ -17,7 +17,7 @@ from nba_rag.store import save_built
 from nba_rag.wikipedia import WikipediaArticleSource
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--manifest", type=Path, default=Path("manifest.json"))
     parser.add_argument("--out", type=Path, default=None, help="defaults to NBA_RAG_DATA_DIR")
@@ -26,7 +26,7 @@ def main() -> None:
         default=os.environ.get("NBA_RAG_CONTACT") or None,
         help="email or URL for the Wikimedia user agent (default: NBA_RAG_CONTACT)",
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     if not args.contact:
         parser.error("a contact is required: pass --contact or set NBA_RAG_CONTACT")
 
