@@ -38,3 +38,18 @@ def test_failed_fetch_raises():
 
     with pytest.raises(httpx.HTTPStatusError):
         source.fetch_html("LeBron James", 1)
+
+
+def test_waits_the_delay_after_every_request():
+    waits: list[float] = []
+    source = WikipediaArticleSource(
+        contact="dev@example.com",
+        client=httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(200, text="x"))),
+        delay_seconds=0.5,
+        sleep=waits.append,
+    )
+
+    source.fetch_html("LeBron James", 1)
+    source.fetch_html("Stephen Curry", 2)
+
+    assert waits == [0.5, 0.5]

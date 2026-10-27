@@ -1,6 +1,7 @@
 """The Eval set and scoring a configuration against it (see ADR 0001)."""
 
 import json
+import re
 from collections.abc import Callable, Sequence
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
@@ -121,6 +122,10 @@ def _parse_question(data: dict) -> EvalQuestion:
     )
 
 
+_SENTENCE_BREAK = re.compile(r"[a-z0-9)][.!?] [A-Z]")
+"""A sentence end followed by a new sentence. Initials like "U.S. Army" don't match."""
+
+
 class InvalidEvidenceError(ValueError):
     """Evidence that isn't verbatim in its named Article, e.g. after a revision change."""
 
@@ -129,7 +134,9 @@ def validate_evidence(eval_set: Sequence[EvalQuestion], corpus: Corpus) -> None:
     """Check every Evidence span appears verbatim (up to whitespace) in its Article.
 
     Article text is rebuilt from its Chunks, so a span straddling two Chunks is still
-    valid Evidence; it just can't be retrieved as a hit (ADR 0001).
+    valid Evidence; it just can't be retrieved as a hit (ADR 0001). A span running over
+    more than one sentence is rejected: that is how it would cross a paragraph, where it
+    would pass the substring check on the joined text yet never fit in any Chunk.
     """
     articles: dict[str, list[str]] = {}
     for chunk in sorted(corpus.chunks, key=lambda c: c.position):
@@ -141,6 +148,11 @@ def validate_evidence(eval_set: Sequence[EvalQuestion], corpus: Corpus) -> None:
         for q in eval_set
         for e in q.evidence
         if normalize_whitespace(e.text) not in article_text.get(e.article_title, "")
+    ] + [
+        f"{q.id}: Evidence spans more than one sentence: {e.text!r}"
+        for q in eval_set
+        for e in q.evidence
+        if _SENTENCE_BREAK.search(normalize_whitespace(e.text))
     ]
     if problems:
         raise InvalidEvidenceError("Evidence not found in the Corpus:\n" + "\n".join(problems))

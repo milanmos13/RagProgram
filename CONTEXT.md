@@ -49,6 +49,10 @@ _Avoid_: Test set, benchmark, golden set
 **Eval question**:
 A question in the Eval set, paired with the Evidence that answers it.
 
+**Source**:
+Where an Eval question came from: hand-written, llm-generated or web. Not to be confused with the Corpus, which is where answers come from.
+_Avoid_: Origin (that describes Chunks)
+
 **Evidence**:
 A verbatim span from a named Article that supports an Eval question's answer: one sentence of prose, or one row of a table or infobox in its text form. Evidence is tied to Article text, never to a particular chunking.
 _Avoid_: Gold chunk, ground truth chunk, label

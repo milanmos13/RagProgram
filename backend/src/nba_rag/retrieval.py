@@ -1,5 +1,6 @@
 """Retrieval configurations and the single ``retrieve`` entry point."""
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 
 import numpy as np
@@ -17,6 +18,8 @@ class ScoredChunk:
 @dataclass(frozen=True)
 class Configuration:
     name: str
+    embedding_setup: str
+    """Names the stored matrix this configuration searches."""
     manifest_version: str
     chunks: list[Chunk]
     embedder: Embedder
@@ -35,6 +38,7 @@ def build_baseline(
         matrix = embedder.embed_chunks([c.text for c in corpus.chunks])
     return Configuration(
         name="baseline",
+        embedding_setup="tutorial",
         manifest_version=corpus.manifest_version,
         chunks=corpus.chunks,
         embedder=embedder,
@@ -45,7 +49,9 @@ def build_baseline(
 def retrieve(configuration: Configuration, query: str, k: int) -> list[ScoredChunk]:
     scores = _cosine(configuration.matrix, configuration.embedder.embed_query(query))
     order = np.argsort(-scores, kind="stable")
-    return _dedupe((ScoredChunk(configuration.chunks[i], float(scores[i])) for i in order), k)
+    return _first_k_distinct_texts(
+        (ScoredChunk(configuration.chunks[i], float(scores[i])) for i in order), k
+    )
 
 
 def _cosine(matrix: np.ndarray, query: np.ndarray) -> np.ndarray:
@@ -54,7 +60,7 @@ def _cosine(matrix: np.ndarray, query: np.ndarray) -> np.ndarray:
     return np.divide(dots, norms, out=np.zeros_like(dots, dtype=float), where=norms > 0)
 
 
-def _dedupe(ranked, k: int) -> list[ScoredChunk]:
+def _first_k_distinct_texts(ranked: Iterable[ScoredChunk], k: int) -> list[ScoredChunk]:
     """Keep the first occurrence of each Chunk text until ``k`` results are collected."""
     seen: set[str] = set()
     results: list[ScoredChunk] = []
