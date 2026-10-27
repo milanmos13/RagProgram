@@ -26,7 +26,14 @@ request after a quiet spell waits 10–20 seconds for the container to start.
 
 ## 2. Backend: Cloud Run
 
-Deploy from the repo root:
+The build fetches 266 Articles politely (one request a second) and embeds about 11k
+Chunks, which outlasts Cloud Build's default 10-minute timeout. Raise the limit once:
+
+```bash
+gcloud config set builds/timeout 1800   # seconds; the build limit, not the service's --timeout
+```
+
+Then deploy from the repo root:
 
 ```bash
 gcloud run deploy nba-rag --source backend \
@@ -38,7 +45,7 @@ gcloud run deploy nba-rag --source backend \
 
 - The first deploy asks to create an Artifact Registry repository
   (`cloud-run-source-deploy`). Answer yes.
-- The build takes about 5–10 minutes: torch, the Wikipedia fetch and embedding. The
+- The build takes about 10–20 minutes: torch, the Wikipedia fetch and embedding. The
   build log should show `Built 11373 Chunks from 266 Articles`.
 - When it finishes, it prints the service URL, e.g.
   `https://nba-rag-<hash>-uc.a.run.app`. Check it:
