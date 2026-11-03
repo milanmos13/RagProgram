@@ -16,10 +16,18 @@ ACTION_API_URL = "https://en.wikipedia.org/w/api.php"
 PROJECT_URL = "https://github.com/milanmos13/RagProgram"
 REVISION_BATCH_SIZE = 50
 """The most titles the action API answers for in one request."""
+RETRYABLE_STATUSES = {429, 500, 502, 503, 504}
+MAX_ATTEMPTS = 5
+BACKOFF_SECONDS = 5
+"""The first wait after a temporary failure when the server doesn't name one; doubles each time."""
 
 
 class _PoliteClient:
     """One request at a time with a fixed delay after each.
+
+    Temporary failures and dropped connections are retried, waiting as long as the
+    server's ``Retry-After`` asks, because a Corpus build makes hundreds of requests and
+    one failure shouldn't end it.
 
     Wikimedia rejects requests without a descriptive user agent, so ``contact``
     (an email address or URL) is required.
@@ -38,7 +46,20 @@ class _PoliteClient:
         self._sleep = sleep
 
     def get(self, url: str, params: dict | None = None) -> httpx.Response:
-        response = self._client.get(url, params=params, headers={"User-Agent": self._user_agent})
+        for attempt in range(MAX_ATTEMPTS):
+            last_attempt = attempt == MAX_ATTEMPTS - 1
+            try:
+                response = self._client.get(
+                    url, params=params, headers={"User-Agent": self._user_agent}
+                )
+            except httpx.TransportError:
+                if last_attempt:
+                    raise
+                self._sleep(BACKOFF_SECONDS * 2**attempt)
+                continue
+            if response.status_code not in RETRYABLE_STATUSES or last_attempt:
+                break
+            self._sleep(_retry_delay(response, attempt))
         response.raise_for_status()
         self._sleep(self._delay_seconds)
         return response
@@ -134,6 +155,12 @@ class WikipediaCatalogue:
                 raise LookupError(f"No Wikipedia article titled {title!r}")
             entries[title] = ManifestEntry(page["title"], page["revisions"][0]["revid"])
         return entries
+
+
+def _retry_delay(response: httpx.Response, attempt: int) -> float:
+    retry_after = response.headers.get("Retry-After", "")
+    # Retry-After can also be a date, which isn't worth parsing for a backoff this short.
+    return int(retry_after) if retry_after.isdigit() else BACKOFF_SECONDS * 2**attempt
 
 
 def _linked_titles(cells: list[Tag]) -> list[str]:
