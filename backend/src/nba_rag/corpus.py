@@ -7,7 +7,7 @@ from typing import Literal, Protocol
 from urllib.parse import quote
 
 from nba_rag.chunking import TokenCounter, baseline_chunks
-from nba_rag.parsing import extract_prose
+from nba_rag.parsing import extract_infobox, extract_prose
 from nba_rag.settings import CHUNK_SIZE
 
 Origin = Literal["prose", "infobox", "table"]
@@ -93,7 +93,8 @@ def _chunk_article(
     count_tokens: TokenCounter,
     chunk_size: int,
 ) -> list[Chunk]:
-    paragraphs = extract_prose(source.fetch_html(entry.title, entry.revision_id))
+    html = source.fetch_html(entry.title, entry.revision_id)
+    paragraphs = extract_prose(html)
     if not paragraphs:
         raise EmptyArticleError(
             f"{entry.title} (revision {entry.revision_id}) has no prose; the parser may be broken"
@@ -113,4 +114,45 @@ def _chunk_article(
                     position=position,
                 )
             )
+    chunks.extend(_infobox_chunks(entry, html, count_tokens, chunk_size, len(chunks)))
     return chunks
+
+
+def _infobox_chunks(
+    entry: ManifestEntry,
+    html: str,
+    count_tokens: TokenCounter,
+    chunk_size: int,
+    first_position: int,
+) -> list[Chunk]:
+    """Pack infobox lines into Chunks, keeping each line whole unless it alone is too long.
+
+    They follow the prose Chunks, so prose Chunk ids do not depend on the infobox.
+    """
+    texts: list[str] = []
+    current: list[str] = []
+    for line in extract_infobox(html):
+        if count_tokens(line) > chunk_size:
+            if current:
+                texts.append("\n".join(current))
+                current = []
+            texts.extend(baseline_chunks(line, count_tokens, chunk_size))
+        elif current and count_tokens("\n".join([*current, line])) > chunk_size:
+            texts.append("\n".join(current))
+            current = [line]
+        else:
+            current.append(line)
+    if current:
+        texts.append("\n".join(current))
+    return [
+        Chunk(
+            id=f"{entry.title}#{first_position + i}",
+            article_title=entry.title,
+            revision_id=entry.revision_id,
+            section_path=(),
+            origin="infobox",
+            text=text,
+            position=first_position + i,
+        )
+        for i, text in enumerate(texts)
+    ]

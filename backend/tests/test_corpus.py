@@ -19,8 +19,9 @@ def build(*entries: ManifestEntry, chunk_size: int = 200):
 
 def test_builds_prose_chunks_with_ids_sections_and_revisions():
     corpus = build(CURRY)
+    prose = prose_chunks(corpus)
 
-    assert [(c.id, c.section_path, c.text) for c in corpus.chunks] == [
+    assert [(c.id, c.section_path, c.text) for c in prose] == [
         (
             "Stephen Curry#0",
             (),
@@ -49,7 +50,7 @@ def test_builds_prose_chunks_with_ids_sections_and_revisions():
             "Curry became the first unanimous MVP in league history.",
         ),
     ]
-    for position, chunk in enumerate(corpus.chunks):
+    for position, chunk in enumerate(prose):
         assert chunk.article_title == "Stephen Curry"
         assert chunk.revision_id == 111
         assert chunk.origin == "prose"
@@ -104,7 +105,7 @@ def test_a_chunk_never_crosses_a_section_boundary_even_when_the_budget_would_all
     corpus = build(CURRY, chunk_size=10_000)
 
     # Every prose paragraph is its own Chunk: nothing is merged into a neighbour in another section.
-    assert [c.section_path for c in corpus.chunks] == [
+    assert [c.section_path for c in prose_chunks(corpus)] == [
         (),
         (),
         ("Early life",),
@@ -114,3 +115,55 @@ def test_a_chunk_never_crosses_a_section_boundary_even_when_the_budget_would_all
             "2015–16 season: Unanimous MVP",
         ),
     ]
+
+
+def prose_chunks(corpus):
+    return [c for c in corpus.chunks if c.origin == "prose"]
+
+
+def infobox_chunks(corpus):
+    return [c for c in corpus.chunks if c.origin == "infobox"]
+
+
+def test_infobox_becomes_field_value_lines_in_its_own_chunk():
+    corpus = build(CURRY)
+
+    (chunk,) = infobox_chunks(corpus)
+    assert chunk.text.splitlines() == [
+        "Position: Point guard",
+        "Draft: 2009 / Round: 1 / Pick: 7th overall",
+        "Career highlights: 4× NBA champion; 10× NBA All-Star",
+        "Teams: Golden State Warriors; Davidson Wildcats",
+    ]
+    assert chunk.article_title == "Stephen Curry"
+    assert chunk.revision_id == 111
+    assert chunk.section_path == ()
+    assert chunk.id == f"Stephen Curry#{chunk.position}"
+
+
+def test_chunks_never_mix_origins_and_ids_stay_unique():
+    corpus = build(CURRY, FINALS, chunk_size=12)
+
+    prose = [c for c in corpus.chunks if c.origin == "prose"]
+    assert all("Draft:" not in c.text and "Position:" not in c.text for c in prose)
+    assert len(infobox_chunks(corpus)) > 1  # budget forces the infobox to split
+    assert all(
+        line.count(": ") >= 1 for c in infobox_chunks(corpus) for line in c.text.splitlines()
+    )
+    assert [c.position for c in corpus.chunks if c.article_title == "Stephen Curry"] == list(
+        range(len([c for c in corpus.chunks if c.article_title == "Stephen Curry"]))
+    )
+    assert len({c.id for c in corpus.chunks}) == len(corpus.chunks)
+
+
+def test_infobox_lines_are_never_split_across_chunks_when_they_fit():
+    corpus = build(CURRY, chunk_size=10)
+
+    lines = [line for c in infobox_chunks(corpus) for line in c.text.splitlines()]
+    assert "Draft: 2009 / Round: 1 / Pick: 7th overall" in lines
+
+
+def test_article_without_infobox_has_only_prose_chunks():
+    corpus = build(FINALS)
+
+    assert infobox_chunks(corpus) == []
