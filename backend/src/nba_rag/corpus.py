@@ -7,7 +7,7 @@ from typing import Literal, Protocol
 from urllib.parse import quote
 
 from nba_rag.chunking import TokenCounter, baseline_chunks
-from nba_rag.parsing import extract_infobox, extract_prose
+from nba_rag.parsing import extract_infobox, extract_prose, extract_tables
 from nba_rag.settings import CHUNK_SIZE
 
 Origin = Literal["prose", "infobox", "table"]
@@ -114,37 +114,57 @@ def _chunk_article(
                     position=position,
                 )
             )
-    chunks.extend(_infobox_chunks(entry, html, count_tokens, chunk_size, len(chunks)))
+    chunks.extend(
+        _line_chunks(
+            entry, "infobox", [], (), extract_infobox(html), count_tokens, chunk_size, len(chunks)
+        )
+    )
+    for table in extract_tables(html):
+        chunks.extend(
+            _line_chunks(
+                entry,
+                "table",
+                [table.caption] if table.caption else [],
+                table.section_path,
+                table.lines,
+                count_tokens,
+                chunk_size,
+                len(chunks),
+            )
+        )
     return chunks
 
 
-def _infobox_chunks(
+def _line_chunks(
     entry: ManifestEntry,
-    html: str,
+    origin: Origin,
+    heading: list[str],
+    section_path: tuple[str, ...],
+    lines: list[str],
     count_tokens: TokenCounter,
     chunk_size: int,
     first_position: int,
 ) -> list[Chunk]:
-    """Pack infobox lines into Chunks, keeping each line whole unless it alone is too long.
+    """Pack infobox or table lines into Chunks, keeping each line whole unless it alone is too long.
 
-    Every Chunk starts with the Article title, because infobox lines like ``Position: Point
-    guard`` never name their subject and would otherwise be unfindable by it. The title
-    counts against the token budget. These Chunks follow the prose Chunks, so prose Chunk
-    ids do not depend on the infobox.
+    Every Chunk starts with the Article title (then any ``heading`` such as a table
+    caption), because such lines never name their subject and would otherwise be
+    unfindable by it. The heading counts against the token budget. These Chunks follow the
+    prose Chunks, so prose Chunk ids do not depend on them.
     """
-    title = entry.title
+    prefix = [entry.title, *heading]
 
-    def fits(lines: list[str]) -> bool:
-        return count_tokens("\n".join([title, *lines])) <= chunk_size
+    def fits(body: list[str]) -> bool:
+        return count_tokens("\n".join([*prefix, *body])) <= chunk_size
 
     bodies: list[list[str]] = []
     current: list[str] = []
-    for line in extract_infobox(html):
+    for line in lines:
         if not fits([line]):
             if current:
                 bodies.append(current)
                 current = []
-            budget = max(1, chunk_size - count_tokens(title))
+            budget = max(1, chunk_size - count_tokens("\n".join(prefix)))
             bodies.extend([piece] for piece in baseline_chunks(line, count_tokens, budget))
         elif current and not fits([*current, line]):
             bodies.append(current)
@@ -153,16 +173,15 @@ def _infobox_chunks(
             current.append(line)
     if current:
         bodies.append(current)
-    texts = ["\n".join([title, *body]) for body in bodies]
     return [
         Chunk(
             id=f"{entry.title}#{first_position + i}",
             article_title=entry.title,
             revision_id=entry.revision_id,
-            section_path=(),
-            origin="infobox",
-            text=text,
+            section_path=section_path,
+            origin=origin,
+            text="\n".join([*prefix, *body]),
             position=first_position + i,
         )
-        for i, text in enumerate(texts)
+        for i, body in enumerate(bodies)
     ]

@@ -4,8 +4,8 @@ from unittest.mock import ANY
 import pytest
 from fastapi.testclient import TestClient
 
-from fakes import KeywordEmbedder
-from nba_rag.corpus import Corpus
+from fakes import FixtureArticleSource, KeywordEmbedder, count_words
+from nba_rag.corpus import Corpus, Manifest, ManifestEntry, build_corpus
 from nba_rag.eval import EvalQuestion, Evidence, evaluate, save_results
 from nba_rag.retrieval import build_baseline
 from nba_rag_api.app import create_app
@@ -157,3 +157,20 @@ def test_search_reports_infobox_origin_for_infobox_chunks(client):
     by_origin = {r["origin"]: r for r in response.json()["results"]}
     assert set(by_origin) == {"prose", "infobox"}
     assert "Draft: 2009 / Round: 1 / Pick: 7th overall" in by_origin["infobox"]["text"]
+
+
+def test_search_reports_table_origin_for_table_chunks(results_dir):
+    manifest = Manifest(
+        version="test", articles=[ManifestEntry(title="2016 NBA Finals scores", revision_id=333)]
+    )
+    scores = build_corpus(manifest, source=FixtureArticleSource(), count_tokens=count_words)
+    baseline = build_baseline(scores, KeywordEmbedder())
+    client = TestClient(
+        create_app({"baseline": baseline}, allowed_origins=[FRONTEND], results_dir=results_dir)
+    )
+
+    response = client.post("/search", json={"question": "Game 2 Warriors 110", "k": 10})
+
+    by_origin = {r["origin"]: r for r in response.json()["results"]}
+    assert set(by_origin) == {"prose", "table"}
+    assert "Game: 2 | Date: June 5" in by_origin["table"]["text"]

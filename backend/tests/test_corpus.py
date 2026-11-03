@@ -5,6 +5,7 @@ from nba_rag.corpus import EmptyArticleError, Manifest, ManifestEntry, build_cor
 
 CURRY = ManifestEntry(title="Stephen Curry", revision_id=111)
 FINALS = ManifestEntry(title="2016 NBA Finals", revision_id=222)
+SCORES = ManifestEntry(title="2016 NBA Finals scores", revision_id=333)
 
 
 def build(*entries: ManifestEntry, chunk_size: int = 200):
@@ -178,3 +179,48 @@ def test_article_without_infobox_has_only_prose_chunks():
     corpus = build(FINALS)
 
     assert infobox_chunks(corpus) == []
+
+
+def table_chunks(corpus):
+    return [c for c in corpus.chunks if c.origin == "table"]
+
+
+def test_table_becomes_one_line_per_row_with_headers_repeated():
+    corpus = build(SCORES)
+
+    (chunk,) = table_chunks(corpus)
+    assert chunk.text.splitlines() == [
+        "2016 NBA Finals scores",
+        "Game results",
+        "Game: 1 | Date: June 2 | Score Cavaliers: 89 | Score Warriors: 104 | Venue: Oracle Arena",
+        "Game: 2 | Date: June 5 | Score Cavaliers: 77 | Score Warriors: 110 | Venue: Oracle Arena",
+        "Game: 7 | Date: June 19 | Score Cavaliers: 93–89 (Cavaliers)"
+        " | Score Warriors: 93–89 (Cavaliers) | Venue: Oracle Arena",
+    ]
+    assert chunk.article_title == "2016 NBA Finals scores"
+    assert chunk.revision_id == 333
+    assert chunk.section_path == ("Game summaries",)
+    assert chunk.id == f"2016 NBA Finals scores#{chunk.position}"
+
+
+def test_table_chunks_follow_prose_and_never_mix_with_it():
+    corpus = build(SCORES)
+
+    assert [c.origin for c in corpus.chunks] == ["prose", "table"]
+    assert all("Game:" not in c.text for c in prose_chunks(corpus))
+    assert "A table with no header row" not in " ".join(c.text for c in corpus.chunks)
+
+
+def test_table_rows_are_never_split_across_chunks_when_they_fit_and_every_chunk_names_the_article():
+    corpus = build(SCORES, chunk_size=30)
+
+    chunks = table_chunks(corpus)
+    assert len(chunks) > 1
+    assert all(c.text.splitlines()[0] == "2016 NBA Finals scores" for c in chunks)
+    rows = [line for c in chunks for line in c.text.splitlines() if line.startswith("Game: ")]
+    assert len(rows) == 3
+    assert len({c.id for c in corpus.chunks}) == len(corpus.chunks)
+
+
+def test_article_without_tables_has_no_table_chunks():
+    assert table_chunks(build(CURRY)) == []
