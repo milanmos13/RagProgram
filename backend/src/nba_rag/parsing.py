@@ -84,6 +84,107 @@ def extract_infobox(html: str) -> list[str]:
     return lines
 
 
+@dataclass(frozen=True)
+class Table:
+    section_path: tuple[str, ...]
+    caption: str
+    lines: list[str]
+
+
+def extract_tables(html: str) -> list[Table]:
+    """Return the Article's data tables, each row as one ``Header: value | ...`` line.
+
+    Only ``wikitable`` tables with a header row count; layout tables have nothing to
+    repeat. Header rows are the leading rows made only of ``th`` cells, and a column with
+    several header rows gets them joined (``Score Cavaliers``). Merged cells (``rowspan``
+    and ``colspan``) are repeated in every column and row they cover. Empty cells are
+    skipped and reference markers removed.
+    """
+    soup = BeautifulSoup(html, "html.parser")
+    for ref in soup.select("sup.mw-ref, sup.reference, style"):
+        ref.decompose()
+
+    tables: list[Table] = []
+    for table in soup.select("table.wikitable"):
+        if table.find_parent("table") is not None:
+            continue  # a nested table's text is already part of its cell
+        grid, header_count = _table_grid(table)
+        if header_count == 0:
+            continue
+        headers = [
+            " ".join(_dedupe_runs(cells)) for cells in zip(*grid[:header_count], strict=False)
+        ]
+        rows = []
+        for row in grid[header_count:]:
+            pairs = [
+                f"{header}: {value}" if header else value
+                for header, value in zip(headers, row, strict=False)
+                if value
+            ]
+            if pairs:
+                rows.append(" | ".join(pairs))
+        if not rows:
+            continue
+        section = table.find_parent("section")
+        caption = table.find("caption")
+        tables.append(
+            Table(
+                section_path=_section_path(section) if section else (),
+                caption=_tidy_punctuation(" ".join(caption.get_text(" ").split()))
+                if caption
+                else "",
+                lines=rows,
+            )
+        )
+    return tables
+
+
+def _table_grid(table: Tag) -> tuple[list[list[str]], int]:
+    """Expand a table into a rectangular grid of cell texts, and count its header rows."""
+    grid: list[list[str]] = []
+    pending: dict[tuple[int, int], str] = {}  # (row, column) covered by an earlier rowspan
+    header_count = 0
+    in_header = True
+    rows = [tr for tr in table.find_all("tr") if tr.find_parent("table") is table]
+    for r, tr in enumerate(rows):
+        cells = tr.find_all(["th", "td"], recursive=False)
+        if in_header and cells and all(cell.name == "th" for cell in cells):
+            header_count += 1
+        else:
+            in_header = False
+        row: list[str] = []
+        for cell in cells:
+            _take_covered(row, pending, r)
+            text = _tidy_punctuation(" ".join(cell.get_text(" ").split()))
+            colspan = _span(cell, "colspan")
+            rowspan = _span(cell, "rowspan")
+            for _ in range(colspan):
+                for extra in range(1, rowspan):
+                    pending[(r + extra, len(row))] = text
+                row.append(text)
+        _take_covered(row, pending, r)
+        grid.append(row)
+    return grid, header_count
+
+
+def _take_covered(row: list[str], pending: dict[tuple[int, int], str], r: int) -> None:
+    while (r, len(row)) in pending:
+        row.append(pending.pop((r, len(row))))
+
+
+def _span(cell: Tag, attribute: str) -> int:
+    value = str(cell.get(attribute, "1"))
+    return max(1, int(value)) if value.isdigit() else 1
+
+
+def _dedupe_runs(values: tuple[str, ...]) -> list[str]:
+    result: list[str] = []
+    for value in values:
+        if value and (not result or result[-1] != value):
+            result.append(value)
+    return result
+
+
 def _section_path(section: Tag) -> tuple[str, ...]:
     titles = []
     for node in [section, *section.find_parents("section")]:

@@ -104,7 +104,7 @@ function ResultCard({ result, rank }: { result: SearchResult; rank: number }) {
         </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
-        <p className={`text-sm leading-6${result.origin === "infobox" ? " whitespace-pre-line" : ""}`}>{result.text}</p>
+        <p className={`text-sm leading-6${result.origin !== "prose" ? " whitespace-pre-line" : ""}`}>{result.text}</p>
         <a
           href={result.revision_url}
           target="_blank"
