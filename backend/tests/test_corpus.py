@@ -130,6 +130,7 @@ def test_infobox_becomes_field_value_lines_in_its_own_chunk():
 
     (chunk,) = infobox_chunks(corpus)
     assert chunk.text.splitlines() == [
+        "Stephen Curry",
         "Position: Point guard",
         "Draft: 2009 / Round: 1 / Pick: 7th overall",
         "Career highlights: 4× NBA champion; 10× NBA All-Star",
@@ -141,6 +142,16 @@ def test_infobox_becomes_field_value_lines_in_its_own_chunk():
     assert chunk.id == f"Stephen Curry#{chunk.position}"
 
 
+def test_every_infobox_chunk_starts_with_its_article_title_within_the_budget():
+    corpus = build(CURRY, chunk_size=12)
+
+    chunks = infobox_chunks(corpus)
+    assert len(chunks) > 1
+    for chunk in chunks:
+        assert chunk.text.splitlines()[0] == "Stephen Curry"
+        assert count_words(chunk.text) <= 12
+
+
 def test_chunks_never_mix_origins_and_ids_stay_unique():
     corpus = build(CURRY, FINALS, chunk_size=12)
 
@@ -148,7 +159,7 @@ def test_chunks_never_mix_origins_and_ids_stay_unique():
     assert all("Draft:" not in c.text and "Position:" not in c.text for c in prose)
     assert len(infobox_chunks(corpus)) > 1  # budget forces the infobox to split
     assert all(
-        line.count(": ") >= 1 for c in infobox_chunks(corpus) for line in c.text.splitlines()
+        line.count(": ") >= 1 for c in infobox_chunks(corpus) for line in c.text.splitlines()[1:]
     )
     assert [c.position for c in corpus.chunks if c.article_title == "Stephen Curry"] == list(
         range(len([c for c in corpus.chunks if c.article_title == "Stephen Curry"]))
@@ -157,9 +168,9 @@ def test_chunks_never_mix_origins_and_ids_stay_unique():
 
 
 def test_infobox_lines_are_never_split_across_chunks_when_they_fit():
-    corpus = build(CURRY, chunk_size=10)
+    corpus = build(CURRY, chunk_size=12)
 
-    lines = [line for c in infobox_chunks(corpus) for line in c.text.splitlines()]
+    lines = [line for c in infobox_chunks(corpus) for line in c.text.splitlines()[1:]]
     assert "Draft: 2009 / Round: 1 / Pick: 7th overall" in lines
 
 

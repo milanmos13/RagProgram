@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from unittest.mock import ANY
 
 import pytest
 from fastapi.testclient import TestClient
@@ -49,13 +50,12 @@ def test_search_returns_ranked_chunks_in_the_agreed_shape(client):
                 "revision_url": "https://en.wikipedia.org/w/index.php?title=Stephen_Curry&oldid=111",
             },
             {
-                "id": "Stephen Curry#2",
+                "id": "Stephen Curry#4",
                 "article_title": "Stephen Curry",
-                "section_path": ["Early life"],
-                "origin": "prose",
-                "text": "Curry was born in Akron, Ohio, while his father Dell Curry was playing "
-                "for the Cleveland Cavaliers.",
-                "score": pytest.approx(0.6325, abs=1e-4),
+                "section_path": [],
+                "origin": "infobox",
+                "text": ANY,
+                "score": pytest.approx(0.7071, abs=1e-4),
                 "revision_url": "https://en.wikipedia.org/w/index.php?title=Stephen_Curry&oldid=111",
             },
         ],

@@ -127,23 +127,33 @@ def _infobox_chunks(
 ) -> list[Chunk]:
     """Pack infobox lines into Chunks, keeping each line whole unless it alone is too long.
 
-    They follow the prose Chunks, so prose Chunk ids do not depend on the infobox.
+    Every Chunk starts with the Article title, because infobox lines like ``Position: Point
+    guard`` never name their subject and would otherwise be unfindable by it. The title
+    counts against the token budget. These Chunks follow the prose Chunks, so prose Chunk
+    ids do not depend on the infobox.
     """
-    texts: list[str] = []
+    title = entry.title
+
+    def fits(lines: list[str]) -> bool:
+        return count_tokens("\n".join([title, *lines])) <= chunk_size
+
+    bodies: list[list[str]] = []
     current: list[str] = []
     for line in extract_infobox(html):
-        if count_tokens(line) > chunk_size:
+        if not fits([line]):
             if current:
-                texts.append("\n".join(current))
+                bodies.append(current)
                 current = []
-            texts.extend(baseline_chunks(line, count_tokens, chunk_size))
-        elif current and count_tokens("\n".join([*current, line])) > chunk_size:
-            texts.append("\n".join(current))
+            budget = max(1, chunk_size - count_tokens(title))
+            bodies.extend([piece] for piece in baseline_chunks(line, count_tokens, budget))
+        elif current and not fits([*current, line]):
+            bodies.append(current)
             current = [line]
         else:
             current.append(line)
     if current:
-        texts.append("\n".join(current))
+        bodies.append(current)
+    texts = ["\n".join([title, *body]) for body in bodies]
     return [
         Chunk(
             id=f"{entry.title}#{first_position + i}",
