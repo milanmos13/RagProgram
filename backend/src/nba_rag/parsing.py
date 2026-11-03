@@ -16,6 +16,9 @@ BOILERPLATE_SECTIONS = {
     "External links",
 }
 
+# Marks where an infobox value has line breaks or list items; newlines in the source do not.
+_BREAK = "\x1f"
+
 HEADINGS = ("h2", "h3", "h4", "h5", "h6")
 
 
@@ -46,6 +49,39 @@ def extract_prose(html: str) -> list[Paragraph]:
             if text:
                 paragraphs.append(Paragraph(section_path=path, text=text))
     return paragraphs
+
+
+def extract_infobox(html: str) -> list[str]:
+    """Return the Article's infobox as ``Field: value`` lines, in reading order.
+
+    Rows without both a label and a value (section headers, images, captions) are skipped.
+    Reference markers are removed; list items and line breaks inside a value become ``; ``.
+    """
+    soup = BeautifulSoup(html, "html.parser")
+    infobox = soup.select_one("table.infobox")
+    if infobox is None:
+        return []
+    for ref in infobox.select("sup.mw-ref, sup.reference, style"):
+        ref.decompose()
+
+    lines: list[str] = []
+    for row in infobox.find_all("tr"):
+        if row.find_parent("table") is not infobox:
+            continue  # a nested table's rows are already part of its cell's text
+        label = row.find("th", class_="infobox-label")
+        data = row.find("td", class_="infobox-data")
+        if label is None or data is None:
+            continue
+        for br in data.find_all("br"):
+            br.replace_with(_BREAK)
+        for item in data.find_all("li"):
+            item.insert_before(_BREAK)
+        field = " ".join(label.get_text(" ").split())
+        parts = (" ".join(part.split()) for part in data.get_text(" ").split(_BREAK))
+        value = "; ".join(_tidy_punctuation(part) for part in parts if part)
+        if field and value:
+            lines.append(f"{field}: {value}")
+    return lines
 
 
 def _section_path(section: Tag) -> tuple[str, ...]:

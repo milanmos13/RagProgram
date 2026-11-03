@@ -7,7 +7,7 @@ from typing import Literal, Protocol
 from urllib.parse import quote
 
 from nba_rag.chunking import TokenCounter, baseline_chunks
-from nba_rag.parsing import extract_prose
+from nba_rag.parsing import extract_infobox, extract_prose
 from nba_rag.settings import CHUNK_SIZE
 
 Origin = Literal["prose", "infobox", "table"]
@@ -93,7 +93,8 @@ def _chunk_article(
     count_tokens: TokenCounter,
     chunk_size: int,
 ) -> list[Chunk]:
-    paragraphs = extract_prose(source.fetch_html(entry.title, entry.revision_id))
+    html = source.fetch_html(entry.title, entry.revision_id)
+    paragraphs = extract_prose(html)
     if not paragraphs:
         raise EmptyArticleError(
             f"{entry.title} (revision {entry.revision_id}) has no prose; the parser may be broken"
@@ -113,4 +114,55 @@ def _chunk_article(
                     position=position,
                 )
             )
+    chunks.extend(_infobox_chunks(entry, html, count_tokens, chunk_size, len(chunks)))
     return chunks
+
+
+def _infobox_chunks(
+    entry: ManifestEntry,
+    html: str,
+    count_tokens: TokenCounter,
+    chunk_size: int,
+    first_position: int,
+) -> list[Chunk]:
+    """Pack infobox lines into Chunks, keeping each line whole unless it alone is too long.
+
+    Every Chunk starts with the Article title, because infobox lines like ``Position: Point
+    guard`` never name their subject and would otherwise be unfindable by it. The title
+    counts against the token budget. These Chunks follow the prose Chunks, so prose Chunk
+    ids do not depend on the infobox.
+    """
+    title = entry.title
+
+    def fits(lines: list[str]) -> bool:
+        return count_tokens("\n".join([title, *lines])) <= chunk_size
+
+    bodies: list[list[str]] = []
+    current: list[str] = []
+    for line in extract_infobox(html):
+        if not fits([line]):
+            if current:
+                bodies.append(current)
+                current = []
+            budget = max(1, chunk_size - count_tokens(title))
+            bodies.extend([piece] for piece in baseline_chunks(line, count_tokens, budget))
+        elif current and not fits([*current, line]):
+            bodies.append(current)
+            current = [line]
+        else:
+            current.append(line)
+    if current:
+        bodies.append(current)
+    texts = ["\n".join([title, *body]) for body in bodies]
+    return [
+        Chunk(
+            id=f"{entry.title}#{first_position + i}",
+            article_title=entry.title,
+            revision_id=entry.revision_id,
+            section_path=(),
+            origin="infobox",
+            text=text,
+            position=first_position + i,
+        )
+        for i, text in enumerate(texts)
+    ]

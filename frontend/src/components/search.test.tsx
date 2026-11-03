@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { delay, http, HttpResponse } from "msw";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -22,6 +22,16 @@ const CURRY_LEAD = {
   origin: "prose",
   text: "Wardell Stephen Curry II is an American professional basketball player.",
   score: 0.41,
+  revision_url: "https://en.wikipedia.org/w/index.php?title=Stephen_Curry&oldid=1381099564",
+};
+
+const CURRY_INFOBOX = {
+  id: "Stephen Curry#4",
+  article_title: "Stephen Curry",
+  section_path: [],
+  origin: "infobox",
+  text: "Position: Point guard\nDraft: 2009 / Round: 1 / Pick: 7th overall",
+  score: 0.52,
   revision_url: "https://en.wikipedia.org/w/index.php?title=Stephen_Curry&oldid=1381099564",
 };
 
@@ -63,6 +73,21 @@ describe("Search", () => {
     expect(second).toHaveTextContent("Stephen Curry");
     expect(second).toHaveTextContent("Lead section");
     expect(second).toHaveTextContent("0.410");
+  });
+
+  it("badges each Chunk with its Origin and keeps infobox lines on separate lines", async () => {
+    server.use(
+      http.post(`${API_URL}/search`, () =>
+        HttpResponse.json({ configuration: "baseline", results: [CURRY_INFOBOX, CURRY_LEAD] }),
+      ),
+    );
+
+    await ask("Where was Curry drafted?");
+
+    const [infobox, prose] = await screen.findAllByRole("article");
+    expect(within(infobox).getByText("infobox")).toBeInTheDocument();
+    expect(within(prose).getByText("prose")).toBeInTheDocument();
+    expect(within(infobox).getByText(/Draft: 2009/)).toHaveClass("whitespace-pre-line");
   });
 
   it("shows a loading state while the search is in flight", async () => {

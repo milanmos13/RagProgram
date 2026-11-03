@@ -12,14 +12,15 @@ def test_baseline_ranks_chunks_by_cosine_similarity(corpus):
 
     # Query vector has curry=1, mvp=1. Worked by hand:
     #   "...first unanimous MVP"            curry=1 mvp=1  -> 1.0
+    #   infobox "Stephen Curry\nPosition..." curry=1         -> 1/sqrt(2) = 0.7071
     #   "Curry was born ... Dell Curry"     curry=2 born=1 -> 2/sqrt(10) = 0.6325
     #   "Wardell Stephen Curry II (born..." curry=1 born=1 -> 1/2 = 0.5
     assert [r.chunk.id for r in results] == [
         "Stephen Curry#3",
+        "Stephen Curry#4",
         "Stephen Curry#2",
-        "Stephen Curry#0",
     ]
-    assert [r.score for r in results] == pytest.approx([1.0, 0.6325, 0.5], abs=1e-4)
+    assert [r.score for r in results] == pytest.approx([1.0, 0.7071, 0.6325], abs=1e-4)
 
 
 def test_chunks_with_no_overlap_score_zero(corpus):

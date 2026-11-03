@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from unittest.mock import ANY
 
 import pytest
 from fastapi.testclient import TestClient
@@ -49,13 +50,12 @@ def test_search_returns_ranked_chunks_in_the_agreed_shape(client):
                 "revision_url": "https://en.wikipedia.org/w/index.php?title=Stephen_Curry&oldid=111",
             },
             {
-                "id": "Stephen Curry#2",
+                "id": "Stephen Curry#4",
                 "article_title": "Stephen Curry",
-                "section_path": ["Early life"],
-                "origin": "prose",
-                "text": "Curry was born in Akron, Ohio, while his father Dell Curry was playing "
-                "for the Cleveland Cavaliers.",
-                "score": pytest.approx(0.6325, abs=1e-4),
+                "section_path": [],
+                "origin": "infobox",
+                "text": ANY,
+                "score": pytest.approx(0.7071, abs=1e-4),
                 "revision_url": "https://en.wikipedia.org/w/index.php?title=Stephen_Curry&oldid=111",
             },
         ],
@@ -149,3 +149,11 @@ def test_results_serves_the_latest_eval_run(client, corpus, results_dir):
 
 def test_results_is_not_found_before_any_eval_run(client):
     assert client.get("/results").status_code == 404
+
+
+def test_search_reports_infobox_origin_for_infobox_chunks(client):
+    response = client.post("/search", json={"question": "Curry", "k": 10})
+
+    by_origin = {r["origin"]: r for r in response.json()["results"]}
+    assert set(by_origin) == {"prose", "infobox"}
+    assert "Draft: 2009 / Round: 1 / Pick: 7th overall" in by_origin["infobox"]["text"]
