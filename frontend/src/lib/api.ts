@@ -37,6 +37,11 @@ export type Metrics = {
   mrr_at_10: number;
 };
 
+export type GroupMetrics = {
+  question_count: number;
+  metrics: Metrics;
+};
+
 export type EvalResults = {
   created_at: string;
   configuration: string;
@@ -49,6 +54,9 @@ export type EvalResults = {
     all_evidence: Metrics;
     any_evidence: Metrics;
   };
+  /** Absent in runs saved before breakdowns existed. */
+  by_type?: Record<string, GroupMetrics>;
+  by_source?: Record<string, GroupMetrics>;
 };
 
 /** The latest eval run, or null when none has been run yet. */

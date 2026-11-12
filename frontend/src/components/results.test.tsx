@@ -47,6 +47,54 @@ describe("Results", () => {
     );
   });
 
+
+  it("breaks results down by question type and by source", async () => {
+    serve(() =>
+      HttpResponse.json({
+        ...RESULTS,
+        by_type: {
+          lookup: {
+            question_count: 6,
+            metrics: { recall_at_1: 0.5, recall_at_5: 0.9, recall_at_10: 1, mrr_at_10: 0.65 },
+          },
+          "multi-hop": {
+            question_count: 2,
+            metrics: { recall_at_1: 0, recall_at_5: 0.5, recall_at_10: 0.5, mrr_at_10: 0.1 },
+          },
+          explanation: {
+            question_count: 2,
+            metrics: { recall_at_1: 0.1, recall_at_5: 0.2, recall_at_10: 0.3, mrr_at_10: 0.15 },
+          },
+        },
+        by_source: {
+          "llm-generated": {
+            question_count: 1,
+            metrics: { recall_at_1: 1, recall_at_5: 1, recall_at_10: 1, mrr_at_10: 1 },
+          },
+          "hand-written": {
+            question_count: 4,
+            metrics: { recall_at_1: 0.25, recall_at_5: 0.75, recall_at_10: 1, mrr_at_10: 0.5 },
+          },
+          web: {
+            question_count: 6,
+            metrics: { recall_at_1: 0.333, recall_at_5: 0.5, recall_at_10: 0.6, mrr_at_10: 0.4 },
+          },
+        },
+      }),
+    );
+
+    render(<Results />);
+
+    await screen.findByRole("table");
+    const rows = screen.getAllByRole("row").map((r) => r.textContent);
+    expect(rows).toContain("Type: Lookup60.5000.9001.0000.650");
+    expect(rows).toContain("Type: Multi-hop20.0000.5000.5000.100");
+    expect(rows).toContain("Type: Explanation20.1000.2000.3000.150");
+    expect(rows).toContain("Source: Hand-written40.2500.7501.0000.500");
+    expect(rows).toContain("Source: Web60.3330.5000.6000.400");
+    expect(rows).toContain("Source: LLM-generated11.0001.0001.0001.000");
+  });
+
   it("explains how a question counts as found", async () => {
     serve(() => HttpResponse.json(RESULTS));
 

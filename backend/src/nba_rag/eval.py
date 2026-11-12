@@ -1,9 +1,10 @@
 """The Eval set and scoring a configuration against it (see ADR 0001)."""
 
 import json
+import random
 import re
 from collections.abc import Callable, Sequence
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal, get_args
@@ -69,6 +70,14 @@ class MultiHopMetrics:
 
 
 @dataclass(frozen=True)
+class GroupMetrics:
+    """Metrics over the questions of one question type or one source."""
+
+    question_count: int
+    metrics: Metrics
+
+
+@dataclass(frozen=True)
 class EvalResults:
     configuration: str
     split: SplitChoice
@@ -78,6 +87,10 @@ class EvalResults:
     """A question counts as found at the rank by which all its Evidence has been
     retrieved; both recall@k and MRR@10 use that rank."""
     multi_hop: MultiHopMetrics
+    by_type: dict[str, GroupMetrics]
+    """Per question type, scored like ``metrics``; types with no questions are left out."""
+    by_source: dict[str, GroupMetrics]
+    """Per Source, scored like ``metrics``; sources with no questions are left out."""
     questions: list[QuestionResult]
 
 
@@ -138,22 +151,8 @@ def validate_evidence(eval_set: Sequence[EvalQuestion], corpus: Corpus) -> None:
     more than one sentence is rejected: that is how it would cross a paragraph, where it
     would pass the substring check on the joined text yet never fit in any Chunk.
     """
-    articles: dict[str, list[str]] = {}
-    for chunk in sorted(corpus.chunks, key=lambda c: c.position):
-        articles.setdefault(chunk.article_title, []).append(normalize_whitespace(chunk.text))
-    article_text = {title: " ".join(texts) for title, texts in articles.items()}
-
-    problems = [
-        f"{q.id}: {e.article_title!r} does not contain {e.text!r}"
-        for q in eval_set
-        for e in q.evidence
-        if normalize_whitespace(e.text) not in article_text.get(e.article_title, "")
-    ] + [
-        f"{q.id}: Evidence spans more than one sentence: {e.text!r}"
-        for q in eval_set
-        for e in q.evidence
-        if _SENTENCE_BREAK.search(normalize_whitespace(e.text))
-    ]
+    texts = article_texts(corpus)
+    problems = [p for q in eval_set for p in evidence_problems(q, texts)]
     if problems:
         raise InvalidEvidenceError("Evidence not found in the Corpus:\n" + "\n".join(problems))
 
@@ -169,8 +168,23 @@ def evaluate(
         question_count=len(questions),
         metrics=_metrics(questions, _rank_all_found),
         multi_hop=_multi_hop_metrics(questions),
+        by_type=_group_metrics(questions, get_args(QuestionType), lambda q: q.question_type),
+        by_source=_group_metrics(questions, get_args(Source), lambda q: q.source),
         questions=questions,
     )
+
+
+def _group_metrics(
+    questions: list[QuestionResult],
+    groups: tuple[str, ...],
+    key: Callable[[QuestionResult], str],
+) -> dict[str, GroupMetrics]:
+    members = {group: [q for q in questions if key(q) == group] for group in groups}
+    return {
+        group: GroupMetrics(len(qs), _metrics(qs, _rank_all_found))
+        for group, qs in members.items()
+        if qs
+    }
 
 
 def _score(configuration: Configuration, question: EvalQuestion) -> QuestionResult:
@@ -256,3 +270,85 @@ def load_latest_results(directory: Path) -> dict | None:
     """The most recently written results file, as stored, or None if there are none."""
     records = [json.loads(p.read_text(encoding="utf-8")) for p in directory.glob("*.json")]
     return max(records, key=lambda r: r["created_at"], default=None)
+
+
+def article_texts(corpus: Corpus) -> dict[str, str]:
+    """Each Article's text, rebuilt from its Chunks with whitespace normalised."""
+    articles: dict[str, list[str]] = {}
+    for chunk in sorted(corpus.chunks, key=lambda c: c.position):
+        articles.setdefault(chunk.article_title, []).append(normalize_whitespace(chunk.text))
+    return {title: " ".join(texts) for title, texts in articles.items()}
+
+
+def evidence_problems(question: EvalQuestion, article_text: dict[str, str]) -> list[str]:
+    """What is wrong with a question's Evidence, one message per problem; empty if fine."""
+    problems = []
+    for e in question.evidence:
+        span = normalize_whitespace(e.text)
+        if span not in article_text.get(e.article_title, ""):
+            problems.append(f"{question.id}: {e.article_title!r} does not contain {e.text!r}")
+        if _SENTENCE_BREAK.search(span):
+            problems.append(f"{question.id}: Evidence spans more than one sentence: {e.text!r}")
+    return problems
+
+
+def split_eval_set(
+    eval_set: Sequence[EvalQuestion], dev_size: int, seed: int
+) -> list[EvalQuestion]:
+    """Assign splits so dev has exactly ``dev_size`` questions, drawn from every
+    (question type, source) group in proportion to the group's size. Input order is kept.
+    """
+    groups: dict[tuple[str, str], list[int]] = {}
+    for index, q in enumerate(eval_set):
+        groups.setdefault((q.question_type, q.source), []).append(index)
+
+    # Largest-remainder allocation: floor each group's share, then hand the leftover
+    # dev places to the groups with the biggest fractional parts.
+    shares = {key: len(ix) * dev_size / len(eval_set) for key, ix in groups.items()}
+    allocation = {key: int(share) for key, share in shares.items()}
+    leftover = dev_size - sum(allocation.values())
+    by_remainder = sorted(shares, key=lambda k: (shares[k] - allocation[k], k), reverse=True)
+    for key in by_remainder[:leftover]:
+        allocation[key] += 1
+
+    rng = random.Random(seed)
+    dev: set[int] = set()
+    for key in sorted(groups):
+        dev.update(rng.sample(groups[key], allocation[key]))
+    return [replace(q, split="dev" if i in dev else "test") for i, q in enumerate(eval_set)]
+
+
+@dataclass(frozen=True)
+class OutOfCorpusCandidate:
+    """A web question the Corpus can't answer, logged as a candidate for growing it.
+
+    One JSON object per line in the candidate log.
+    """
+
+    question: str
+    found_at: str
+    """Where the question was found (a URL), or empty."""
+    suggested_article: str
+    """The Wikipedia Article that would answer it, or empty."""
+    note: str
+
+
+def log_out_of_corpus(path: Path, candidate: OutOfCorpusCandidate) -> None:
+    with path.open("a", encoding="utf-8") as file:
+        file.write(json.dumps(asdict(candidate), ensure_ascii=False) + "\n")
+
+
+def load_out_of_corpus(path: Path) -> list[OutOfCorpusCandidate]:
+    if not path.exists():
+        return []
+    return [
+        OutOfCorpusCandidate(**json.loads(line))
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+
+
+def save_eval_set(path: Path, eval_set: Sequence[EvalQuestion]) -> None:
+    """Write the Eval set as JSONL, one Eval question per line."""
+    lines = [json.dumps(asdict(q), ensure_ascii=False) for q in eval_set]
+    path.write_text("\n".join(lines) + "\n" if lines else "", encoding="utf-8")
