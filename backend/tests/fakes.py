@@ -65,3 +65,15 @@ class FakeCatalogue:
     def current_revisions(self, titles: list[str]) -> list[ManifestEntry]:
         self.revisions_requested.extend(titles)
         return [ManifestEntry(title, 1000 + i) for i, title in enumerate(titles)]
+
+
+class FakeLLM:
+    """LLM client that replays canned completions in order and records every prompt."""
+
+    def __init__(self, *responses: str) -> None:
+        self._responses = list(responses)
+        self.prompts: list[str] = []
+
+    def complete(self, prompt: str) -> str:
+        self.prompts.append(prompt)
+        return self._responses.pop(0)

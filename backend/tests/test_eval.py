@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import UTC, datetime
 
 import pytest
@@ -285,3 +286,43 @@ def test_all_evidence_mrr_is_zero_when_any_span_is_never_found(corpus):
     assert results.metrics.mrr_at_10 == 0.0
     assert results.multi_hop.all_evidence.mrr_at_10 == 0.0
     assert results.multi_hop.any_evidence.mrr_at_10 == 1.0
+
+
+def test_results_break_down_by_question_type(corpus):
+    results = evaluate(build_baseline(corpus, KeywordEmbedder()), EVAL_SET, split="dev")
+
+    # Ranks (all Evidence found): q1 1, q2 2 (lookup); q3 7 (explanation); q4 5 (multi-hop).
+    assert list(results.by_type) == ["lookup", "multi-hop", "explanation"]
+    lookup = results.by_type["lookup"]
+    assert lookup.question_count == 2
+    assert lookup.metrics.recall_at_1 == pytest.approx(0.5)
+    assert lookup.metrics.recall_at_5 == pytest.approx(1.0)
+    assert lookup.metrics.mrr_at_10 == pytest.approx((1 + 1 / 2) / 2)
+    explanation = results.by_type["explanation"]
+    assert explanation.question_count == 1
+    assert explanation.metrics.recall_at_5 == 0.0
+    assert explanation.metrics.recall_at_10 == 1.0
+    assert explanation.metrics.mrr_at_10 == pytest.approx(1 / 7)
+    assert results.by_type["multi-hop"].metrics.mrr_at_10 == pytest.approx(1 / 5)
+
+
+def test_results_break_down_by_source_and_omit_sources_with_no_questions(corpus):
+    mixed = [replace(q, source="web") if q.id in ("q1", "q3") else q for q in EVAL_SET]
+
+    results = evaluate(build_baseline(corpus, KeywordEmbedder()), mixed, split="dev")
+
+    assert list(results.by_source) == ["hand-written", "web"]
+    assert results.by_source["web"].question_count == 2
+    assert results.by_source["web"].metrics.mrr_at_10 == pytest.approx((1 + 1 / 7) / 2)
+    assert results.by_source["hand-written"].metrics.mrr_at_10 == pytest.approx((1 / 2 + 1 / 5) / 2)
+
+
+def test_saved_results_carry_the_breakdowns(corpus, tmp_path):
+    results = evaluate(build_baseline(corpus, KeywordEmbedder()), EVAL_SET, split="dev")
+
+    save_results(results, tmp_path, created_at=datetime(2026, 1, 1, tzinfo=UTC))
+
+    stored = load_latest_results(tmp_path)
+    assert stored["by_type"]["lookup"]["question_count"] == 2
+    assert stored["by_type"]["lookup"]["metrics"]["recall_at_1"] == 0.5
+    assert stored["by_source"]["hand-written"]["question_count"] == 4

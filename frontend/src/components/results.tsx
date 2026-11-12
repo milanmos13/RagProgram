@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { type EvalResults, getResults, type Metrics } from "@/lib/api";
+import { type EvalResults, getResults, type GroupMetrics, type Metrics } from "@/lib/api";
 
 type State =
   | { kind: "loading" }
@@ -94,6 +94,8 @@ function ResultsTable({ results }: { results: EvalResults }) {
               />
             </>
           )}
+          <GroupRows prefix="Type" groups={results.by_type} />
+          <GroupRows prefix="Source" groups={results.by_source} />
         </TableBody>
       </Table>
       <p className="text-sm text-muted-foreground">
@@ -103,6 +105,28 @@ function ResultsTable({ results }: { results: EvalResults }) {
       </p>
     </div>
   );
+}
+
+/** Rows for a breakdown, e.g. "Type: Multi-hop"; runs saved before breakdowns have none. */
+function GroupRows({
+  prefix,
+  groups,
+}: {
+  prefix: string;
+  groups: Record<string, GroupMetrics> | undefined;
+}) {
+  return Object.entries(groups ?? {}).map(([name, group]) => (
+    <MetricsRow
+      key={name}
+      label={`${prefix}: ${displayName(name)}`}
+      count={group.question_count}
+      metrics={group.metrics}
+    />
+  ));
+}
+
+function displayName(name: string) {
+  return (name.charAt(0).toUpperCase() + name.slice(1)).replace(/^Llm/, "LLM");
 }
 
 function MetricsRow({ label, count, metrics }: { label: string; count: number; metrics: Metrics }) {
