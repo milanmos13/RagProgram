@@ -35,6 +35,16 @@ const CURRY_INFOBOX = {
   revision_url: "https://en.wikipedia.org/w/index.php?title=Stephen_Curry&oldid=1381099564",
 };
 
+const FINALS_TABLE = {
+  id: "2016 NBA Finals#9",
+  article_title: "2016 NBA Finals",
+  section_path: ["Game summaries"],
+  origin: "table",
+  text: "2016 NBA Finals\nGame: 1 | Date: June 2 | Venue: Oracle Arena\nGame: 2 | Date: June 5 | Venue: Oracle Arena",
+  score: 0.61,
+  revision_url: "https://en.wikipedia.org/w/index.php?title=2016_NBA_Finals&oldid=1",
+};
+
 async function ask(question: string, Component: typeof Search = Search) {
   const user = userEvent.setup();
   render(<Component />);
@@ -88,6 +98,20 @@ describe("Search", () => {
     expect(within(infobox).getByText("infobox")).toBeInTheDocument();
     expect(within(prose).getByText("prose")).toBeInTheDocument();
     expect(within(infobox).getByText(/Draft: 2009/)).toHaveClass("whitespace-pre-line");
+  });
+
+  it("badges table Chunks and keeps each table row on its own line", async () => {
+    server.use(
+      http.post(`${API_URL}/search`, () =>
+        HttpResponse.json({ configuration: "baseline", results: [FINALS_TABLE] }),
+      ),
+    );
+
+    await ask("What was the score of Game 1?");
+
+    const [table] = await screen.findAllByRole("article");
+    expect(within(table).getByText("table")).toBeInTheDocument();
+    expect(within(table).getByText(/Game: 1 \| Date: June 2/)).toHaveClass("whitespace-pre-line");
   });
 
   it("shows a loading state while the search is in flight", async () => {
