@@ -102,3 +102,39 @@ def test_candidate_ids_continue_from_the_start_number(corpus):
     [candidate] = generate_candidates(corpus, llm, chunks[:1], first_number=41).candidates
 
     assert candidate.id == "g041"
+
+
+def test_empty_evidence_is_rejected(corpus):
+    chunk = next(c for c in corpus.chunks if BORN in c.text)
+
+    result = generate_candidates(corpus, FakeLLM(reply("q?", "  ")), [chunk])
+
+    assert result.candidates == []
+    assert len(result.rejected) == 1
+
+
+def test_replies_wrapped_in_a_json_code_fence_are_accepted(corpus):
+    chunk = next(c for c in corpus.chunks if BORN in c.text)
+    fenced = "```json\n" + reply("Where from?", BORN) + "\n```"
+
+    result = generate_candidates(corpus, FakeLLM(fenced), [chunk])
+
+    assert len(result.candidates) == 1
+
+
+def test_a_failing_llm_call_rejects_that_chunk_and_the_run_continues(corpus):
+    import httpx
+
+    class Flaky(FakeLLM):
+        def complete(self, prompt):
+            if not self.prompts:
+                self.prompts.append(prompt)
+                raise httpx.ReadTimeout("slow")
+            return super().complete(prompt)
+
+    chunks = [c for c in corpus.chunks if BORN in c.text][:1] * 2
+
+    result = generate_candidates(corpus, Flaky(reply("q?", BORN)), chunks)
+
+    assert len(result.candidates) == 1
+    assert "ReadTimeout" in result.rejected[0].reason

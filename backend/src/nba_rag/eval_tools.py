@@ -98,6 +98,10 @@ def _search(args: argparse.Namespace) -> None:
 
 
 def _generate(args: argparse.Namespace) -> None:
+    if args.out.exists():
+        raise SystemExit(
+            f"{args.out} already exists; reviewing it or finalizing it first, or pick another --out"
+        )
     corpus, _ = load_built(data_dir())
     chunks = sample_chunks(corpus, args.count, args.seed)
     result = generate_candidates(corpus, OpenAIClient(), chunks, args.first_number)
@@ -136,9 +140,15 @@ def _review(args: argparse.Namespace) -> None:
 def _finalize(args: argparse.Namespace) -> None:
     existing = load_eval_set(args.eval_set) if args.eval_set.exists() else []
     taken = {q.id for q in existing}
-    kept = [q for q in kept_questions(args.file) if q.id not in taken]
+    reviewed = kept_questions(args.file)
+    kept = [q for q in reviewed if q.id not in taken]
     save_eval_set(args.eval_set, [*existing, *kept])
     print(f"Added {len(kept)} questions to {args.eval_set}; run `split` to assign dev/test.")
+    if len(reviewed) > len(kept):
+        print(
+            f"skipped {len(reviewed) - len(kept)} whose ids are already in the Eval set; "
+            "regenerate with --first-number"
+        )
 
 
 def _split(args: argparse.Namespace) -> None:

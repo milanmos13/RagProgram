@@ -13,6 +13,8 @@ from collections import defaultdict
 from dataclasses import dataclass
 from typing import Literal
 
+import httpx
+
 from nba_rag.corpus import Chunk, Corpus
 from nba_rag.eval import (
     EvalQuestion,
@@ -107,8 +109,11 @@ def generate_candidates(
         number = first_number + len(candidates)
         try:
             candidate = _parse_reply(llm.complete(_prompt(chunk)), chunk, f"g{number:03d}")
-        except ValueError as error:
-            rejected.append(Rejection(chunk.id, str(error)))
+        except (ValueError, httpx.HTTPError) as error:
+            reason = str(error) or type(error).__name__
+            if isinstance(error, httpx.HTTPError):
+                reason = f"LLM call failed: {type(error).__name__}: {reason}"
+            rejected.append(Rejection(chunk.id, reason))
             continue
         problems = evidence_problems(candidate.to_question(), texts)
         if problems:
@@ -133,7 +138,7 @@ def _prompt(chunk: Chunk) -> str:
 
 def _parse_reply(reply: str, chunk: Chunk, candidate_id: str) -> Candidate:
     try:
-        data = json.loads(reply)
+        data = json.loads(_strip_code_fence(reply))
         question, evidence, question_type = (
             data["question"],
             data["evidence"],
@@ -143,7 +148,12 @@ def _parse_reply(reply: str, chunk: Chunk, candidate_id: str) -> Candidate:
         raise ValueError(f"malformed LLM reply: {reply[:80]!r}") from error
     if question_type not in GENERATED_TYPES:
         raise ValueError(f"question_type {question_type!r} is not one of {GENERATED_TYPES}")
-    if not (isinstance(question, str) and isinstance(evidence, str) and question.strip()):
+    if not (
+        isinstance(question, str)
+        and isinstance(evidence, str)
+        and question.strip()
+        and evidence.strip()
+    ):
         raise ValueError("question and evidence must be non-empty strings")
     return Candidate(
         id=candidate_id,
@@ -153,3 +163,11 @@ def _parse_reply(reply: str, chunk: Chunk, candidate_id: str) -> Candidate:
         evidence=[Evidence(chunk.article_title, evidence.strip())],
         chunk_id=chunk.id,
     )
+
+
+def _strip_code_fence(reply: str) -> str:
+    """Models often wrap JSON in a ```json fence; take what is inside it."""
+    text = reply.strip()
+    if text.startswith("```"):
+        text = text.split("\n", 1)[-1].removesuffix("```")
+    return text

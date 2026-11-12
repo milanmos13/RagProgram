@@ -97,3 +97,11 @@ def test_kept_candidates_become_eval_questions_without_a_split_decision(corpus, 
     assert question.source == "llm-generated"
     assert question.split == "test"
     assert json.loads(json.dumps(question.text))
+
+
+def test_blank_lines_in_a_hand_edited_review_file_are_skipped(tmp_path):
+    path = tmp_path / "review.jsonl"
+    write_review_file(path, [candidate("g001")])
+    path.write_text("\n" + path.read_text() + "\n\n", encoding="utf-8")
+
+    assert [c.id for c in load_review_file(path)] == ["g001"]

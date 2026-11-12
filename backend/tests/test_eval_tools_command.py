@@ -117,3 +117,33 @@ def test_log_out_of_corpus_appends_to_the_candidate_log(tmp_path):
     [candidate] = load_out_of_corpus(log)
     assert candidate.question == "Who won the 2004 Slam Dunk Contest?"
     assert candidate.found_at == "https://example.com/t"
+
+
+def test_generate_refuses_to_overwrite_an_existing_review_file(workspace, monkeypatch):
+    monkeypatch.setattr(eval_tools, "OpenAIClient", lambda: FakeLLM())
+    review = workspace / "review.jsonl"
+    review.write_text("keep me\n", encoding="utf-8")
+
+    with pytest.raises(SystemExit):
+        eval_tools.main(["generate", "--count", "1", "--out", str(review)])
+
+    assert review.read_text() == "keep me\n"
+
+
+def test_finalize_says_how_many_kept_questions_it_skipped_for_clashing_ids(
+    workspace, monkeypatch, capsys
+):
+    from nba_rag.eval import EvalQuestion, Evidence, save_eval_set
+    from nba_rag.generate import Candidate
+    from nba_rag.review import write_review_file
+
+    review, eval_set = workspace / "review.jsonl", workspace / "eval_set.jsonl"
+    evidence = [Evidence("Stephen Curry", BORN)]
+    save_eval_set(eval_set, [EvalQuestion("g001", "?", "lookup", "hand-written", "dev", evidence)])
+    write_review_file(
+        review, [Candidate("g001", "Where?", "lookup", "llm-generated", evidence, "c", "kept")]
+    )
+
+    eval_tools.main(["finalize", str(review), "--eval-set", str(eval_set)])
+
+    assert "skipped 1" in capsys.readouterr().out

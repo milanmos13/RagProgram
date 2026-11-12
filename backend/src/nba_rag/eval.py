@@ -298,6 +298,10 @@ def split_eval_set(
     """Assign splits so dev has exactly ``dev_size`` questions, drawn from every
     (question type, source) group in proportion to the group's size. Input order is kept.
     """
+    if not eval_set:
+        return []
+    if not 0 <= dev_size <= len(eval_set):
+        raise ValueError(f"dev_size {dev_size} must be between 0 and {len(eval_set)}")
     groups: dict[tuple[str, str], list[int]] = {}
     for index, q in enumerate(eval_set):
         groups.setdefault((q.question_type, q.source), []).append(index)

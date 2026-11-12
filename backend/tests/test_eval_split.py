@@ -51,3 +51,11 @@ def test_split_is_reproducible_and_keeps_order_and_content():
     assert first == split_eval_set(original, dev_size=35, seed=7)
     assert [q.id for q in first] == [q.id for q in original]
     assert first != split_eval_set(original, dev_size=35, seed=8)
+
+
+def test_empty_set_splits_to_empty_and_oversized_dev_is_refused():
+    import pytest
+
+    assert split_eval_set([], dev_size=5, seed=1) == []
+    with pytest.raises(ValueError, match="dev_size"):
+        split_eval_set(questions({("lookup", "web"): 3}), dev_size=4, seed=1)

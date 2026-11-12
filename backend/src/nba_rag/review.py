@@ -48,7 +48,9 @@ def write_review_file(path: Path, candidates: list[Candidate]) -> None:
 def load_review_file(path: Path) -> list[Candidate]:
     return [
         Candidate(**{**data, "evidence": [Evidence(**e) for e in data["evidence"]]})
-        for data in map(json.loads, path.read_text(encoding="utf-8").splitlines())
+        for data in map(
+            json.loads, filter(str.strip, path.read_text(encoding="utf-8").splitlines())
+        )
     ]
 
 
